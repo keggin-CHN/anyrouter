@@ -1,0 +1,31 @@
+{
+  "api_keys": [
+    "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2"
+  ],
+  "api_key": "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2",
+  "proxy": "http://127.0.0.1:10808",
+  "check_interval_min": 30,
+  "round_cooldown_sec": 30,
+  "tries_per_round": 5,
+  "intra_round_delay_sec": 5,
+  "max_retries": 3,
+  "random_heartbeat": true,
+  "heartbeat_prompts": [
+    "1+1",
+    "用一个字回答：好",
+    "输出一个数字: 8",
+    "2*3等于几",
+    "Hi, reply 1 word.",
+    "请回复'pong'",
+    "3+5等于几",
+    "ping",
+    "100-1等于多少",
+    "从1数到3"
+  ],
+  "heartbeat_prompt": "1+1",
+  "selected_models": [
+    "gpt-6-astra",
+    "claude-fable-5-1"
+  ],
+  "close_behavior": "ask"
+}
