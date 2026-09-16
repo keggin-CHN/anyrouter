@@ -3,42 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnyRouter 多Key自动挂机排队保活矩阵 v2.6 (Go 轻量原生版)</title>
+  <title>AnyRouter 多Key并发自动挂机保活矩阵 v2.6 (Go 原生桌面版)</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* ==========================================================================
+       Design System: Vercel / Linear / Raycast Dark Dashboard Aesthetics
+       ========================================================================== */
     :root {
-      --bg-base: #0a0b12;
-      --bg-surface-1: rgba(18, 20, 34, 0.78);
-      --bg-surface-2: rgba(24, 28, 48, 0.85);
-      --bg-input: rgba(10, 12, 22, 0.88);
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(129, 140, 248, 0.4);
+      --bg-canvas: #090a0f;
+      --bg-panel: #0e1017;
+      --bg-card: rgba(18, 21, 31, 0.75);
+      --bg-card-hover: rgba(26, 30, 46, 0.85);
+      --bg-card-solid: #131622;
+      --bg-input: #0a0b12;
+      --bg-header: rgba(12, 14, 22, 0.88);
+
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-medium: rgba(255, 255, 255, 0.12);
+      --border-hover: rgba(129, 140, 248, 0.35);
       --border-focus: #6366f1;
-      --fg-primary: #f8fafc;
-      --fg-secondary: #94a3b8;
-      --fg-muted: #64748b;
-      
-      --accent-indigo: #6366f1;
-      --accent-violet: #8b5cf6;
-      --accent-emerald: #10b981;
-      --accent-amber: #f59e0b;
-      --accent-rose: #f43f5e;
-      --accent-cyan: #06b6d4;
 
-      --grad-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-      --grad-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      --grad-danger: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-      --grad-surface: linear-gradient(180deg, rgba(28, 32, 54, 0.7) 0%, rgba(18, 21, 38, 0.75) 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --text-dim: #475569;
 
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-      --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
-      --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.35);
+      --indigo: #6366f1;
+      --indigo-hover: #4f46e5;
+      --indigo-light: #818cf8;
+      --indigo-glow: rgba(99, 102, 241, 0.3);
+
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.25);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.25);
+      --cyan: #06b6d4;
+
+      --radius-xs: 4px;
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 14px;
+      --radius-xl: 18px;
+
+      --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      --shadow-btn: 0 2px 10px rgba(99, 102, 241, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
     }
 
     * {
@@ -47,11 +60,16 @@
       padding: 0;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     body {
-      background: radial-gradient(ellipse at 50% 0%, #17192f 0%, #0c0d16 60%, #07080d 100%);
-      color: var(--fg-primary);
+      background-color: var(--bg-canvas);
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+        radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.05), transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05), transparent 40%);
+      color: var(--text-main);
       height: 100vh;
       display: flex;
       flex-direction: column;
@@ -59,314 +77,389 @@
       user-select: none;
     }
 
-    /* 滚动条统一美化 */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.2);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.25);
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(129, 140, 248, 0.5);
-    }
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.4); }
 
-    /* 1. 顶部 Header 状态栏 */
+    /* ==========================================================================
+       1. Header Bar (Frosted Navigation & Status)
+       ========================================================================== */
     header {
-      background: rgba(15, 17, 28, 0.85);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      height: 50px;
+      background: var(--bg-header);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      height: 48px;
       border-bottom: 1px solid var(--border-subtle);
-      padding: 0 18px;
+      padding: 0 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      z-index: 20;
+      z-index: 50;
     }
-    .header-left {
+
+    .brand-section {
       display: flex;
       align-items: center;
       gap: 10px;
     }
-    .header-logo-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));
+
+    .brand-logo-wrap {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
+      flex-shrink: 0;
     }
-    .header-title {
+
+    .brand-logo-wrap svg {
+      width: 16px;
+      height: 16px;
+      fill: #ffffff;
+    }
+
+    .brand-title {
       font-size: 13.5px;
       font-weight: 700;
+      letter-spacing: -0.2px;
       color: #ffffff;
-      letter-spacing: 0.4px;
-      background: linear-gradient(90deg, #ffffff 0%, #c7d2fe 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .header-badge {
+
+    .brand-badge-version {
       font-size: 10px;
       font-weight: 700;
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.3) 0%, rgba(147, 51, 234, 0.3) 100%);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(99, 102, 241, 0.15);
       color: #a5b4fc;
-      padding: 2px 8px;
-      border-radius: 6px;
-      border: 1px solid rgba(129, 140, 248, 0.3);
-      letter-spacing: 0.3px;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      letter-spacing: 0.2px;
     }
-    .btn-tray-hide {
-      background: rgba(49, 46, 129, 0.35);
-      color: #c7d2fe;
-      border: 1px solid rgba(99, 102, 241, 0.35);
-      border-radius: 6px;
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-tray-dock {
+      background: rgba(255, 255, 255, 0.04);
+      color: #cbd5e1;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
       font-size: 11px;
       font-weight: 600;
-      padding: 4px 10px;
+      padding: 4px 9px;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 4px;
-      transition: all 0.2s ease;
+      gap: 5px;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .btn-tray-hide:hover {
-      background: rgba(79, 70, 229, 0.6);
+
+    .btn-tray-dock:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(129, 140, 248, 0.4);
       color: #ffffff;
-      border-color: #818cf8;
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
       transform: translateY(-1px);
     }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 14px;
+
+    .btn-tray-dock svg {
+      width: 13px;
+      height: 13px;
+      stroke: currentColor;
     }
-    .header-silent-tip {
+
+    .header-hint {
       font-size: 11px;
-      color: var(--fg-muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      color: var(--text-subtle);
+      margin-right: 4px;
     }
-    .proxy-status-tag {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: var(--accent-amber);
-      display: flex;
+
+    .proxy-status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--amber);
+      display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(15, 18, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       padding: 4px 10px;
       border-radius: 20px;
-      border: 1px solid var(--border-subtle);
       transition: all 0.2s ease;
     }
-    .proxy-dot {
+
+    .proxy-indicator-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       background: currentColor;
       box-shadow: 0 0 8px currentColor;
-      display: inline-block;
-      animation: pulse-dot 2s infinite ease-in-out;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(0.9); opacity: 0.7; }
-      50% { transform: scale(1.2); opacity: 1; }
+      position: relative;
     }
 
-    /* 主容器 */
-    .main-container {
+    .proxy-indicator-dot::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      opacity: 0.6;
+      animation: pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.6); opacity: 0; }
+      100% { transform: scale(0.9); opacity: 0; }
+    }
+
+    /* ==========================================================================
+       Layout Container
+       ========================================================================== */
+    .app-viewport {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 12px 18px;
+      padding: 12px 16px;
+      gap: 10px;
       overflow: hidden;
-      gap: 12px;
+      min-height: 0;
     }
 
-    /* 2. 顶部卡片：API Keys 凭据池 */
-    .card-frame {
-      background: var(--bg-surface-1);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+    /* ==========================================================================
+       2. Credentials Card (API Keys Vault)
+       ========================================================================== */
+    .vault-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       padding: 10px 14px;
-      box-shadow: var(--shadow-sm);
-      transition: border-color 0.2s ease;
+      box-shadow: var(--shadow-card);
       flex-shrink: 0;
+      transition: border-color 0.2s ease;
     }
-    .card-frame:hover {
-      border-color: rgba(255, 255, 255, 0.12);
+
+    .vault-card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
     }
-    .card-legend {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: #a5b4fc;
-      margin-bottom: 8px;
+
+    .vault-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      letter-spacing: 0.2px;
+      margin-bottom: 8px;
     }
-    .keys-row {
+
+    .vault-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: -0.1px;
+    }
+
+    .vault-label svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--indigo-light);
+    }
+
+    .vault-body {
       display: flex;
       gap: 12px;
       align-items: stretch;
     }
-    .keys-textarea {
+
+    .keys-input-area {
       flex: 1;
-      height: 60px;
+      height: 56px;
       background: var(--bg-input);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       color: #e2e8f0;
       font-family: 'JetBrains Mono', Consolas, monospace;
       font-size: 11.5px;
-      padding: 7px 12px;
+      padding: 7px 10px;
       resize: none;
       outline: none;
       line-height: 1.45;
-      transition: all 0.2s ease;
       user-select: text;
+      transition: all 0.2s ease;
     }
-    .keys-textarea:focus {
-      border-color: var(--accent-indigo);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-      background: rgba(13, 16, 30, 0.95);
+
+    .keys-input-area:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.4);
+      background: #080910;
     }
-    .keys-side-col {
+
+    .vault-tools-col {
+      width: 170px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      width: 175px;
       gap: 4px;
     }
-    .key-counter-badge {
-      font-size: 11.5px;
+
+    .key-count-tag {
+      font-size: 11px;
       font-weight: 700;
       color: #34d399;
       text-align: center;
-      padding: 4px 6px;
+      padding: 3px 6px;
       background: rgba(16, 185, 129, 0.1);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       border: 1px solid rgba(16, 185, 129, 0.25);
     }
-    .btn-tool {
-      background: rgba(55, 65, 81, 0.6);
+
+    .btn-vault-action {
+      background: rgba(255, 255, 255, 0.05);
       color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      padding: 5px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.18s ease;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 5px;
+      transition: all 0.15s ease;
     }
-    .btn-tool:hover {
-      background: rgba(75, 85, 99, 0.8);
-      color: #ffffff;
+
+    .btn-vault-action:hover {
+      background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
       transform: translateY(-1px);
     }
-    .btn-tool:active {
-      transform: translateY(0);
+
+    .btn-vault-action svg {
+      width: 13px;
+      height: 13px;
+      stroke: currentColor;
     }
-    .btn-tool-primary {
-      background: linear-gradient(135deg, rgba(67, 56, 202, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%);
+
+    .btn-vault-action-primary {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.85) 0%, rgba(99, 102, 241, 0.85) 100%);
+      border-color: rgba(129, 140, 248, 0.4);
       color: #ffffff;
-      border: 1px solid rgba(129, 140, 248, 0.4);
     }
-    .btn-tool-primary:hover {
+
+    .btn-vault-action-primary:hover {
       background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
       box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
     }
 
-    /* 3. 中部三大面板 Notebook */
-    .notebook-container {
+    /* ==========================================================================
+       3. Main Notebook (Tabs & Viewports)
+       ========================================================================== */
+    .notebook-shell {
       flex: 1;
       display: flex;
       flex-direction: column;
       min-height: 0;
-      background: var(--bg-surface-1);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       overflow: hidden;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-card);
     }
-    .tab-header-row {
+
+    .tabs-nav-bar {
       display: flex;
-      background: rgba(14, 16, 28, 0.9);
+      background: rgba(12, 14, 23, 0.95);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 4px 8px 0;
+      padding: 5px 8px 0;
       gap: 4px;
     }
-    .notebook-tab-btn {
+
+    .tab-nav-btn {
       background: transparent;
       border: none;
-      color: var(--fg-secondary);
+      color: var(--text-muted);
       font-size: 12px;
-      font-weight: 700;
-      padding: 9px 18px;
+      font-weight: 600;
+      padding: 8px 16px;
       cursor: pointer;
-      border-bottom: 3px solid transparent;
-      border-top-left-radius: 6px;
-      border-top-right-radius: 6px;
-      transition: all 0.18s ease;
-      display: flex;
+      border-top-left-radius: var(--radius-sm);
+      border-top-right-radius: var(--radius-sm);
+      border-bottom: 2px solid transparent;
+      display: inline-flex;
       align-items: center;
       gap: 7px;
+      transition: all 0.18s ease;
     }
-    .notebook-tab-btn:hover {
-      color: #e2e8f0;
-      background: rgba(255, 255, 255, 0.04);
+
+    .tab-nav-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
     }
-    .notebook-tab-btn.active {
-      background: linear-gradient(180deg, rgba(79, 70, 229, 0.3) 0%, rgba(99, 102, 241, 0.12) 100%);
+
+    .tab-nav-btn:hover {
       color: #ffffff;
-      border-bottom-color: #818cf8;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.03);
     }
-    .tab-counter-pill {
-      background: rgba(99, 102, 241, 0.3);
-      color: #c7d2fe;
-      font-size: 10.5px;
+
+    .tab-nav-btn.active {
+      color: #ffffff;
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0.05) 100%);
+      border-bottom-color: var(--indigo-light);
+      font-weight: 700;
+    }
+
+    .tab-badge-pill {
+      font-size: 10px;
+      font-weight: 700;
       padding: 1px 6px;
       border-radius: 10px;
+      background: rgba(99, 102, 241, 0.25);
+      color: #c7d2fe;
       border: 1px solid rgba(129, 140, 248, 0.3);
     }
 
-    .tab-body-area {
+    .tab-content-area {
       flex: 1;
-      overflow: hidden;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       min-height: 0;
     }
-    .tab-page {
+
+    .tab-pane {
       flex: 1;
       display: none;
       flex-direction: column;
       overflow: hidden;
       min-height: 0;
     }
-    .tab-page.active {
+
+    .tab-pane.active {
       display: flex;
     }
-    .tab-sub-toolbar {
-      height: 36px;
-      background: rgba(18, 21, 38, 0.6);
+
+    .sub-toolbar {
+      height: 34px;
+      background: rgba(14, 17, 28, 0.6);
       border-bottom: 1px solid var(--border-subtle);
       padding: 0 14px;
       display: flex;
@@ -376,8 +469,8 @@
       flex-shrink: 0;
     }
 
-    /* Tab 1: 监控矩阵 */
-    .monitor-grid {
+    /* Tab 1: Monitor Grid */
+    .monitor-stream-grid {
       flex: 1;
       overflow-y: auto;
       padding: 12px 14px;
@@ -386,122 +479,136 @@
       gap: 12px;
       align-content: start;
     }
-    .channel-box {
-      background: rgba(14, 16, 28, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+
+    .channel-pod {
+      background: var(--bg-card-solid);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
       padding: 12px 14px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
     }
-    .channel-box:hover {
-      border-color: rgba(129, 140, 248, 0.35);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+
+    .channel-pod:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
       transform: translateY(-2px);
     }
-    .channel-head-row {
+
+    .channel-pod-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .badge-key {
+
+    .pod-tags-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pod-key-badge {
       font-family: 'JetBrains Mono', Consolas, monospace;
       font-size: 11px;
       font-weight: 700;
       color: #93c5fd;
-      background: rgba(30, 58, 138, 0.4);
-      border: 1px solid rgba(96, 165, 250, 0.3);
+      background: rgba(30, 58, 138, 0.35);
+      border: 1px solid rgba(96, 165, 250, 0.25);
       padding: 2px 7px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
     }
-    .badge-model {
+
+    .pod-model-badge {
       font-size: 11px;
       font-weight: 700;
-      color: #c084fc;
+      color: #d8b4fe;
       background: rgba(88, 28, 135, 0.35);
-      border: 1px solid rgba(192, 132, 252, 0.3);
+      border: 1px solid rgba(192, 132, 252, 0.25);
       padding: 2px 7px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
     }
-    .badge-state-avail {
+
+    .status-pill-avail {
       font-size: 11px;
       font-weight: 700;
       color: #34d399;
       background: rgba(6, 78, 59, 0.45);
-      border: 1px solid rgba(52, 211, 153, 0.4);
-      padding: 3px 8px;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      padding: 2px 8px;
       border-radius: 12px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
       box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
     }
-    .badge-state-squeezing {
+
+    .status-pill-squeezing {
       font-size: 11px;
       font-weight: 700;
       color: #fbbf24;
       background: rgba(120, 53, 15, 0.4);
-      border: 1px solid rgba(251, 191, 36, 0.35);
-      padding: 3px 8px;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      padding: 2px 8px;
       border-radius: 12px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
     }
-    .badge-state-stopped {
+
+    .status-pill-stopped {
       font-size: 11px;
-      font-weight: 700;
-      color: #94a3b8;
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      padding: 3px 8px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      padding: 2px 8px;
       border-radius: 12px;
     }
-    .channel-state-text {
+
+    .channel-headline {
       font-size: 12px;
       font-weight: 600;
       line-height: 1.4;
-      padding: 2px 0;
     }
-    .channel-detail-panel {
-      background: rgba(9, 10, 18, 0.85);
+
+    .channel-log-inset {
+      background: #080910;
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 6px;
-      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
       font-size: 11px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
       user-select: text;
     }
-    .detail-line {
+
+    .inset-line {
       display: flex;
       align-items: baseline;
       gap: 6px;
-      color: var(--fg-secondary);
+      color: var(--text-muted);
     }
-    .detail-val {
+
+    .inset-prompt {
       font-family: 'JetBrains Mono', Consolas, monospace;
-      color: #e2e8f0;
-      font-weight: 600;
+      color: #cbd5e1;
+      font-weight: 500;
     }
-    .detail-val-reply {
+
+    .inset-reply {
       font-family: 'JetBrains Mono', Consolas, monospace;
       color: #6ee7b7;
       font-weight: 500;
       word-break: break-all;
     }
 
-    /* Tab 2: 模型选择 */
-    .model-actions-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .model-list-grid {
+    /* Tab 2: Model Picker */
+    .model-cards-grid {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
@@ -510,103 +617,120 @@
       gap: 12px;
       align-content: start;
     }
-    .model-card-item {
-      background: rgba(15, 17, 30, 0.85);
+
+    .model-card-box {
+      background: var(--bg-card-solid);
       border: 1px solid var(--border-subtle);
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       padding: 14px 16px;
       display: flex;
       align-items: flex-start;
       gap: 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: var(--shadow-sm);
+      transition: all 0.18s ease;
+      box-shadow: var(--shadow-card);
     }
-    .model-card-item:hover {
+
+    .model-card-box:hover {
       border-color: rgba(129, 140, 248, 0.4);
-      background: rgba(22, 25, 46, 0.85);
+      background: rgba(24, 28, 44, 0.95);
       transform: translateY(-2px);
     }
-    .model-card-item input[type="checkbox"] {
+
+    .model-card-box input[type="checkbox"] {
       width: 17px;
       height: 17px;
-      accent-color: var(--accent-indigo);
+      accent-color: var(--indigo);
       cursor: pointer;
       margin-top: 2px;
     }
-    .model-card-content {
+
+    .model-meta-wrap {
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .model-card-title-row {
+
+    .model-title-line {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .model-card-title {
+
+    .model-id-label {
       font-family: 'JetBrains Mono', Consolas, monospace;
       font-size: 13px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: #f8fafc;
     }
-    .model-type-badge {
+
+    .proto-badge {
       font-size: 10px;
       font-weight: 700;
       padding: 2px 7px;
       border-radius: 4px;
     }
-    .type-codex {
+
+    .proto-codex {
       background: rgba(88, 28, 135, 0.4);
       color: #d8b4fe;
       border: 1px solid rgba(192, 132, 252, 0.3);
     }
-    .type-claude {
+
+    .proto-claude {
       background: rgba(15, 118, 110, 0.4);
       color: #5eead4;
       border: 1px solid rgba(45, 212, 191, 0.3);
     }
-    .type-openai {
+
+    .proto-openai {
       background: rgba(30, 64, 175, 0.4);
       color: #93c5fd;
       border: 1px solid rgba(96, 165, 250, 0.3);
     }
-    .model-card-desc {
+
+    .model-desc-text {
       font-size: 11.5px;
-      color: var(--fg-secondary);
-      line-height: 1.4;
+      color: var(--text-muted);
+      line-height: 1.45;
     }
 
-    /* Tab 3: 全参数配置 */
-    #page-settings {
-      padding: 12px 16px;
+    /* Tab 3: Advanced Settings */
+    .settings-view-scroll {
+      flex: 1;
       overflow-y: auto;
-      gap: 12px;
-    }
-    .settings-subcard {
-      background: rgba(14, 16, 28, 0.85);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
       padding: 12px 16px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      box-shadow: var(--shadow-sm);
+      gap: 12px;
     }
-    .settings-legend {
+
+    .settings-section-card {
+      background: var(--bg-card-solid);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .settings-card-title {
       font-size: 12px;
       font-weight: 700;
-      color: #a5b4fc;
+      color: #cbd5e1;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .prompts-textarea {
+
+    .prompts-editor-area {
       width: 100%;
       height: 90px;
       background: var(--bg-input);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       color: #e2e8f0;
       font-family: 'JetBrains Mono', Consolas, monospace;
@@ -618,30 +742,35 @@
       user-select: text;
       transition: all 0.2s ease;
     }
-    .prompts-textarea:focus {
-      border-color: var(--accent-indigo);
+
+    .prompts-editor-area:focus {
+      border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
     }
-    .params-grid {
+
+    .params-responsive-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 10px 14px;
     }
-    .param-field {
+
+    .form-item {
       display: flex;
       flex-direction: column;
       gap: 5px;
     }
-    .param-label {
+
+    .form-label {
       font-size: 11px;
       font-weight: 600;
-      color: var(--fg-secondary);
+      color: var(--text-muted);
     }
-    .param-input, .param-select {
+
+    .form-control-input, .form-control-select {
       height: 32px;
       background: var(--bg-input);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
       color: #f1f5f9;
       font-family: 'JetBrains Mono', Consolas, monospace;
       font-size: 12px;
@@ -650,146 +779,198 @@
       transition: all 0.2s ease;
       user-select: text;
     }
-    .param-input:focus, .param-select:focus {
-      border-color: var(--accent-indigo);
+
+    .form-control-input:focus, .form-control-select:focus {
+      border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
     }
-    .param-select option {
+
+    .form-control-select option {
       background: #111322;
       color: #f1f5f9;
     }
 
-    /* 4. 操作控制条 */
-    .action-bar {
+    /* ==========================================================================
+       4. Action Bar (Bottom Docked Controls)
+       ========================================================================== */
+    .action-dock-bar {
+      height: 46px;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 0 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 44px;
-      background: var(--bg-surface-1);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 0 14px;
-      box-shadow: var(--shadow-sm);
       flex-shrink: 0;
+      box-shadow: var(--shadow-card);
     }
-    .action-left {
+
+    .dock-left-actions {
       display: flex;
       align-items: center;
       gap: 10px;
     }
-    .btn-action-start {
-      background: var(--grad-primary);
+
+    .btn-dock-start {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       color: #ffffff;
-      border: none;
-      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius-sm);
       padding: 6px 18px;
       font-size: 12.5px;
       font-weight: 700;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
-      transition: all 0.2s ease;
-      letter-spacing: 0.3px;
+      gap: 7px;
+      box-shadow: var(--shadow-btn);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      letter-spacing: -0.1px;
     }
-    .btn-action-start:hover {
-      box-shadow: 0 6px 22px rgba(139, 92, 246, 0.6);
+
+    .btn-dock-start:hover {
+      box-shadow: 0 4px 18px rgba(124, 58, 237, 0.55);
       transform: translateY(-1px);
     }
-    .btn-action-start:active {
+
+    .btn-dock-start:active {
       transform: translateY(0);
     }
-    .btn-action-stop {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-      border-radius: 6px;
+
+    .btn-dock-start svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    .btn-dock-stop {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: var(--radius-sm);
       padding: 6px 16px;
       font-size: 12px;
       font-weight: 700;
       cursor: not-allowed;
       opacity: 0.5;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       transition: all 0.2s ease;
     }
-    .btn-action-stop.enabled {
-      background: var(--grad-danger);
+
+    .btn-dock-stop.enabled {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       color: #ffffff;
-      border: none;
       cursor: pointer;
       opacity: 1;
-      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
     }
-    .btn-action-stop.enabled:hover {
-      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+
+    .btn-dock-stop.enabled:hover {
+      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.55);
       transform: translateY(-1px);
     }
-    .matrix-status-summary {
+
+    .btn-dock-stop svg {
+      width: 13px;
+      height: 13px;
+      fill: currentColor;
+    }
+
+    .dock-status-summary {
       font-size: 12px;
       font-weight: 600;
-      color: var(--fg-secondary);
+      color: var(--text-muted);
       margin-left: 6px;
     }
-    .action-right {
+
+    .dock-right-actions {
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    .btn-sec-action {
-      background: rgba(30, 41, 59, 0.6);
+
+    .btn-dock-sec {
+      background: rgba(255, 255, 255, 0.05);
       color: #cbd5e1;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
       padding: 6px 12px;
       font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.18s ease;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
+      transition: all 0.15s ease;
     }
-    .btn-sec-action:hover {
-      background: rgba(51, 65, 85, 0.8);
-      color: #ffffff;
+
+    .btn-dock-sec:hover {
+      background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
       transform: translateY(-1px);
     }
 
-    /* 5. 底部实时日志监控窗口 */
-    .log-container-card {
+    .btn-dock-sec svg {
+      width: 13px;
+      height: 13px;
+      stroke: currentColor;
+    }
+
+    /* ==========================================================================
+       5. Terminal Console Card (Telemetry Logs)
+       ========================================================================== */
+    .telemetry-card {
       height: 165px;
-      background: var(--bg-surface-1);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       padding: 8px 12px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       flex-shrink: 0;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-card);
     }
-    .log-legend {
+
+    .telemetry-header {
       font-size: 11.5px;
       font-weight: 700;
-      color: #a5b4fc;
+      color: #cbd5e1;
       margin-bottom: 5px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    .log-scroller {
+
+    .terminal-dots {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #f87171; }
+    .dot-yellow { background: #fbbf24; }
+    .dot-green { background: #34d399; }
+
+    .telemetry-scroller {
       flex: 1;
-      background: #07080e;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 6px;
+      background: #06070c;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-sm);
       overflow-y: auto;
       padding: 7px 12px;
       font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
@@ -797,14 +978,17 @@
       line-height: 1.5;
       user-select: text;
     }
-    .log-row {
+
+    .log-line {
       margin-bottom: 3px;
       word-break: break-all;
     }
-    .log-timestamp {
-      color: #64748b;
+
+    .log-stamp {
+      color: var(--text-subtle);
       margin-right: 7px;
     }
+
     .log-tag-info { color: #818cf8; }
     .log-tag-queue { color: #facc15; }
     .log-tag-success { color: #34d399; font-weight: 700; }
@@ -815,122 +999,167 @@
 </head>
 <body>
 
-  <!-- 1. 顶部 Header 状态栏 -->
+  <!-- 1. Header Bar -->
   <header>
-    <div class="header-left">
-      <img src="/favicon.ico" class="header-logo-icon" onerror="this.style.display='none'">
-      <span class="header-title">AnyRouter 多Key并发自动挂机排队保活矩阵</span>
-      <span class="header-badge">Go 原生桌面版</span>
-      <button class="btn-tray-hide" onclick="hideToTray()" title="最小化隐藏到系统右下角托盘">🔽 隐藏到托盘</button>
+    <div class="brand-section">
+      <div class="brand-logo-wrap">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <span>AnyRouter 保活矩阵</span>
+        <span class="brand-badge-version">v2.6 Go 原生版</span>
+      </div>
+      <button class="btn-tray-dock" onclick="hideToTray()" title="最小化隐藏到系统右下角托盘">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+        隐藏到托盘
+      </button>
     </div>
-    <div class="header-right">
-      <span class="header-silent-tip">💡 提示：点击右上角 ❌ 可直接进入后台静默保活</span>
-      <div id="proxy-status" class="proxy-status-tag">
-        <span class="proxy-dot"></span>
+
+    <div class="header-actions">
+      <span class="header-hint">💡 点击右上角 ❌ 可直接进入后台静默保活</span>
+      <div id="proxy-status" class="proxy-status-pill">
+        <span class="proxy-indicator-dot"></span>
         <span id="proxy-status-text">[● 正在检测 10808 代理...]</span>
       </div>
     </div>
   </header>
 
-  <div class="main-container">
+  <!-- Main Viewport -->
+  <div class="app-viewport">
 
-    <!-- 2. 顶部卡片：API Keys 凭据池 -->
-    <div class="card-frame">
-      <div class="card-legend">
-        <span>🔑 API Keys 凭据池 (支持多 Key 一行一个，自动去重与并发)</span>
+    <!-- 2. Credentials Card (API Keys) -->
+    <div class="vault-card">
+      <div class="vault-header">
+        <span class="vault-label">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+          </svg>
+          API Keys 凭据池 (支持多 Key 换行输入，自动并发守护与去重)
+        </span>
       </div>
-      <div class="keys-row">
-        <textarea id="keys-input" class="keys-textarea" placeholder="在此粘贴 API Keys，每行一个 key&#10;sk-xxxx...&#10;sk-yyyy..." oninput="onKeysChanged()"></textarea>
-        <div class="keys-side-col">
-          <div id="key-count-lbl" class="key-counter-badge">已识别 0 个 Key</div>
-          <button class="btn-tool" onclick="pasteFromClipboard()">📋 粘贴剪贴板</button>
-          <button class="btn-tool btn-tool-primary" onclick="refreshModelList()">🔍 刷新模型列表</button>
+      <div class="vault-body">
+        <textarea id="keys-input" class="keys-input-area" placeholder="在此填入 API Keys，每行一个 key&#10;sk-xxxx...&#10;sk-yyyy..." oninput="onKeysChanged()"></textarea>
+        <div class="vault-tools-col">
+          <div id="key-count-lbl" class="key-count-tag">已识别 0 个 Key</div>
+          <button class="btn-vault-action" onclick="pasteFromClipboard()">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            粘贴剪贴板
+          </button>
+          <button class="btn-vault-action btn-vault-action-primary" onclick="refreshModelList()">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            刷新通道列表
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- 3. 中部三大面板 Notebook -->
-    <div class="notebook-container">
-      <div class="tab-header-row">
-        <button id="tab-btn-monitor" class="notebook-tab-btn active" onclick="switchTab('monitor')">📊 多 Key 并发监控矩阵 (实时状态)</button>
-        <button id="tab-btn-models" class="notebook-tab-btn" onclick="switchTab('models')">📋 模型选择 <span id="tab-model-count" class="tab-counter-pill">0</span></button>
-        <button id="tab-btn-settings" class="notebook-tab-btn" onclick="switchTab('settings')">⚙ 全参数高级配置与题库</button>
+    <!-- 3. Notebook Shell -->
+    <div class="notebook-shell">
+      <div class="tabs-nav-bar">
+        <button id="tab-btn-monitor" class="tab-nav-btn active" onclick="switchTab('monitor')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          多 Key 并发监控矩阵
+        </button>
+        <button id="tab-btn-models" class="tab-nav-btn" onclick="switchTab('models')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+          目标模型选择 <span id="tab-model-count" class="tab-badge-pill">0</span>
+        </button>
+        <button id="tab-btn-settings" class="tab-nav-btn" onclick="switchTab('settings')">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+          高级策略与题库
+        </button>
       </div>
 
-      <div class="tab-body-area">
+      <div class="tab-content-area">
 
-        <!-- Tab 1 (默认优先): 监控矩阵 -->
-        <div id="page-monitor" class="tab-page active">
-          <div class="tab-sub-toolbar">
+        <!-- Tab 1: Monitor Matrix -->
+        <div id="page-monitor" class="tab-pane active">
+          <div class="sub-toolbar">
             <span id="monitor-summary-lbl" style="color:#94a3b8;font-weight:600;">正在加载通道状态...</span>
             <span style="color:#64748b;font-size:11px;">1秒动态跳秒刷新</span>
           </div>
-          <div id="monitor-grid" class="monitor-grid"></div>
+          <div id="monitor-grid" class="monitor-stream-grid"></div>
         </div>
 
-        <!-- Tab 2: 模型选择 -->
-        <div id="page-models" class="tab-page">
-          <div class="tab-sub-toolbar">
-            <div class="model-actions-left">
-              <button class="btn-tool" onclick="selectAllModels()">全选</button>
-              <button class="btn-tool" onclick="deselectAllModels()">全不选</button>
-              <button class="btn-tool" onclick="resetDefaultModels()">恢复推荐</button>
+        <!-- Tab 2: Model Selection -->
+        <div id="page-models" class="tab-pane">
+          <div class="sub-toolbar">
+            <div class="dock-left-actions">
+              <button class="btn-vault-action" onclick="selectAllModels()">全选</button>
+              <button class="btn-vault-action" onclick="deselectAllModels()">全不选</button>
+              <button class="btn-vault-action" onclick="resetDefaultModels()">恢复推荐</button>
             </div>
             <span id="models-header-count" style="color:#94a3b8;font-weight:600;">共加载 0 个模型 (已勾选 0 个)</span>
           </div>
-          <div id="model-list-grid" class="model-list-grid"></div>
+          <div id="model-list-grid" class="model-cards-grid"></div>
         </div>
 
-        <!-- Tab 3: 全参数高级配置 -->
-        <div id="page-settings" class="tab-page">
-          <!-- 题库设置 -->
-          <div class="settings-subcard">
-            <div class="settings-legend">
-              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-                <input type="checkbox" id="cfg-random-prompt" style="accent-color:#34d399;width:16px;height:16px;" checked>
-                <span style="color:#34d399;font-weight:600;">🎲 启用随机测活问题轮换 (防止平台缓存与固定单一特征识别)</span>
-              </label>
-              <button class="btn-tool" onclick="restoreDefaultPrompts()">↺ 恢复 10 大经典预设题库</button>
+        <!-- Tab 3: Settings -->
+        <div id="page-settings" class="tab-pane">
+          <div class="settings-view-scroll">
+            <!-- 题库设置 -->
+            <div class="settings-section-card">
+              <div class="settings-card-title">
+                <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;">
+                  <input type="checkbox" id="cfg-random-prompt" style="accent-color:#34d399;width:16px;height:16px;" checked>
+                  <span style="color:#34d399;font-weight:600;">🎲 启用随机测活问题轮换 (防止平台缓存与固定特征识别)</span>
+                </label>
+                <button class="btn-vault-action" onclick="restoreDefaultPrompts()">↺ 恢复 10 大经典预设题库</button>
+              </div>
+              <textarea id="cfg-prompts-input" class="prompts-editor-area" placeholder="每行一道题..."></textarea>
             </div>
-            <textarea id="cfg-prompts-input" class="prompts-textarea" placeholder="每行一道题..."></textarea>
-          </div>
 
-          <!-- 参数设置 -->
-          <div class="settings-subcard">
-            <div class="settings-legend">
-              <span>⚙ 保活与排队核心参数设置</span>
-            </div>
-            <div class="params-grid">
-              <div class="param-field">
-                <label class="param-label">每轮尝试次数：</label>
-                <input id="cfg-tries" class="param-input" type="number" min="1" max="20" value="5">
+            <!-- 参数设置 -->
+            <div class="settings-section-card">
+              <div class="settings-card-title">
+                <span>⚙ 保活与排队核心参数设置</span>
               </div>
-              <div class="param-field">
-                <label class="param-label">轮内单次间隔 (秒)：</label>
-                <input id="cfg-intra-delay" class="param-input" type="number" min="1" max="60" value="5">
-              </div>
-              <div class="param-field">
-                <label class="param-label">轮末冷却等待 (秒)：</label>
-                <input id="cfg-cooldown" class="param-input" type="number" min="5" max="300" value="30">
-              </div>
-              <div class="param-field">
-                <label class="param-label">测活巡航周期 (分钟)：</label>
-                <input id="cfg-interval" class="param-input" type="number" min="1" max="180" value="30">
-              </div>
-              <div class="param-field">
-                <label class="param-label">测活重试次数：</label>
-                <input id="cfg-retries" class="param-input" type="number" min="1" max="10" value="3">
-              </div>
-              <div class="param-field">
-                <label class="param-label">本地代理通道：</label>
-                <input id="cfg-proxy" class="param-input" type="text" value="http://127.0.0.1:10808">
-              </div>
-              <div class="param-field">
-                <label class="param-label">点击关闭行为：</label>
-                <select id="cfg-close-behavior" class="param-select">
-                  <option value="silent">进入后台静默运行 (默认)</option>
-                  <option value="exit">彻底退出程序</option>
-                </select>
+              <div class="params-responsive-grid">
+                <div class="form-item">
+                  <label class="form-label">每轮尝试次数：</label>
+                  <input id="cfg-tries" class="form-control-input" type="number" min="1" max="20" value="5">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">轮内单次间隔 (秒)：</label>
+                  <input id="cfg-intra-delay" class="form-control-input" type="number" min="1" max="60" value="5">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">轮末冷却等待 (秒)：</label>
+                  <input id="cfg-cooldown" class="form-control-input" type="number" min="5" max="300" value="30">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">测活巡航周期 (分钟)：</label>
+                  <input id="cfg-interval" class="form-control-input" type="number" min="1" max="180" value="30">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">测活重试次数：</label>
+                  <input id="cfg-retries" class="form-control-input" type="number" min="1" max="10" value="3">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">本地代理通道：</label>
+                  <input id="cfg-proxy" class="form-control-input" type="text" value="http://127.0.0.1:10808">
+                </div>
+                <div class="form-item">
+                  <label class="form-label">点击关闭行为：</label>
+                  <select id="cfg-close-behavior" class="form-control-select">
+                    <option value="silent">进入后台静默运行 (默认)</option>
+                    <option value="exit">彻底退出程序</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -939,25 +1168,53 @@
       </div>
     </div>
 
-    <!-- 4. 操作控制条 -->
-    <div class="action-bar">
-      <div class="action-left">
-        <button id="btn-start" class="btn-action-start" onclick="startKeepalive()">🚀 开始并发挂机保活</button>
-        <button id="btn-stop" class="btn-action-stop" onclick="stopKeepalive()">⏹ 停止挂机</button>
-        <span id="matrix-summary-text" class="matrix-status-summary"></span>
+    <!-- 4. Action Dock Bar -->
+    <div class="action-dock-bar">
+      <div class="dock-left-actions">
+        <button id="btn-start" class="btn-dock-start" onclick="startKeepalive()">
+          <svg viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          开始并发挂机保活
+        </button>
+        <button id="btn-stop" class="btn-dock-stop" onclick="stopKeepalive()">
+          <svg viewBox="0 0 24 24">
+            <path d="M6 6h12v12H6z"/>
+          </svg>
+          停止挂机
+        </button>
+        <span id="matrix-summary-text" class="dock-status-summary"></span>
       </div>
-      <div class="action-right">
-        <button class="btn-sec-action" onclick="saveAllConfig()">💾 保存配置</button>
-        <button class="btn-sec-action" onclick="clearLiveLogs()">🧹 清空日志</button>
+      <div class="dock-right-actions">
+        <button class="btn-dock-sec" onclick="saveAllConfig()">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          保存配置
+        </button>
+        <button class="btn-dock-sec" onclick="clearLiveLogs()">
+          <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          清空日志
+        </button>
       </div>
     </div>
 
-    <!-- 5. 底部实时日志监控窗口 -->
-    <div class="log-container-card">
-      <div class="log-legend">
-        <span>🖥 实时两阶段并发挂机日志</span>
+    <!-- 5. Telemetry Logs Card -->
+    <div class="telemetry-card">
+      <div class="telemetry-header">
+        <div class="brand-section">
+          <div class="terminal-dots">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+          </div>
+          <span style="margin-left:6px;font-weight:700;">实时两阶段并发挂机日志</span>
+        </div>
+        <span style="font-size:10px;color:var(--text-subtle);">实时流同步中</span>
       </div>
-      <div id="log-scroller" class="log-scroller"></div>
+      <div id="log-scroller" class="telemetry-scroller"></div>
     </div>
 
   </div>
@@ -981,8 +1238,8 @@
     ];
 
     function switchTab(tabKey) {
-      document.querySelectorAll('.notebook-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       
       const btn = document.getElementById('tab-btn-' + tabKey);
       const page = document.getElementById('page-' + tabKey);
@@ -1072,19 +1329,19 @@
 
       container.innerHTML = modelCandidates.map(m => {
         const isChecked = selected.has(m.id) ? 'checked' : '';
-        let badgeClass = 'type-claude';
-        if (m.type.includes('Codex') || m.type.includes('Responses')) badgeClass = 'type-codex';
-        else if (m.type.includes('OpenAI')) badgeClass = 'type-openai';
+        let badgeClass = 'proto-claude';
+        if (m.type.includes('Codex') || m.type.includes('Responses')) badgeClass = 'proto-codex';
+        else if (m.type.includes('OpenAI')) badgeClass = 'proto-openai';
 
         return `
-          <label class="model-card-item">
+          <label class="model-card-box">
             <input type="checkbox" value="${m.id}" ${isChecked} onchange="onModelCheckboxChanged()">
-            <div class="model-card-content">
-              <div class="model-card-title-row">
-                <span class="model-card-title">${m.id}</span>
-                <span class="model-type-badge ${badgeClass}">${m.type}</span>
+            <div class="model-meta-wrap">
+              <div class="model-title-line">
+                <span class="model-id-label">${m.id}</span>
+                <span class="proto-badge ${badgeClass}">${m.type}</span>
               </div>
-              <div class="model-card-desc">${m.desc}</div>
+              <div class="model-desc-text">${m.desc}</div>
             </div>
           </label>
         `;
@@ -1143,11 +1400,11 @@
       const summary = document.getElementById('matrix-summary-text');
       if (isRunning) {
         startBtn.style.display = 'none';
-        stopBtn.className = 'btn-action-stop enabled';
+        stopBtn.className = 'btn-dock-stop enabled';
         summary.innerText = "🟢 正在并发挂机保活中...";
       } else {
-        startBtn.style.display = 'flex';
-        stopBtn.className = 'btn-action-stop';
+        startBtn.style.display = 'inline-flex';
+        stopBtn.className = 'btn-dock-stop';
         summary.innerText = "⚪ 挂机已停止/未启动";
       }
     }
@@ -1157,8 +1414,8 @@
       const summaryLbl = document.getElementById('monitor-summary-lbl');
 
       if (states.length === 0) {
-        summaryLbl.innerText = "尚未开启保活通道。点击下方【🚀 开始并发挂机保活】即可启动。";
-        grid.innerHTML = '<div style="color:#64748b;font-size:12px;padding:24px;text-align:center;grid-column:1/-1;">暂无运行中的通道。请配置好 API Keys 与模型后点击启动。</div>';
+        summaryLbl.innerText = "尚未开启保活通道。点击下方【开始并发挂机保活】即可启动。";
+        grid.innerHTML = '<div style="color:#64748b;font-size:12px;padding:28px;text-align:center;grid-column:1/-1;">暂无运行中的通道。请配置好 API Keys 与模型后点击启动。</div>';
         return;
       }
 
@@ -1166,32 +1423,32 @@
       grid.innerHTML = states.map(s => {
         const isAvail = s.status === 'available';
         const isSqueezing = s.status === 'squeezing';
-        let statusBadge = `<span class="badge-state-stopped">⚪ 已停止</span>`;
+        let statusBadge = `<span class="status-pill-stopped">⚪ 已停止</span>`;
         let statusColor = '#94a3b8';
 
         if (isAvail) {
-          statusBadge = `<span class="badge-state-avail">🟢 能用 (阶段二)</span>`;
+          statusBadge = `<span class="status-pill-avail">🟢 能用 (阶段二)</span>`;
           statusColor = '#34d399';
         } else if (isSqueezing) {
-          statusBadge = `<span class="badge-state-squeezing">🟡 用不了 (阶段一)</span>`;
+          statusBadge = `<span class="status-pill-squeezing">🟡 用不了 (阶段一)</span>`;
           statusColor = '#fbbf24';
         }
 
         return `
-          <div class="channel-box">
-            <div class="channel-head-row">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span class="badge-key">${s.key_label} (${s.key_masked})</span>
-                <span class="badge-model">${s.model_id}</span>
+          <div class="channel-pod">
+            <div class="channel-pod-head">
+              <div class="pod-tags-left">
+                <span class="pod-key-badge">${s.key_label} (${s.key_masked})</span>
+                <span class="pod-model-badge">${s.model_id}</span>
               </div>
               ${statusBadge}
             </div>
-            <div class="channel-state-text" style="color:${statusColor};">
+            <div class="channel-headline" style="color:${statusColor};">
               ${s.status_text}
             </div>
-            <div class="channel-detail-panel">
-              <div class="detail-line">最近随机提问: <span class="detail-val">${s.last_prompt || '(等待中)'}</span></div>
-              <div class="detail-line">最近响应摘要: <span class="detail-val-reply">${s.last_reply || '(暂无)'}</span></div>
+            <div class="channel-log-inset">
+              <div class="inset-line">提问: <span class="inset-prompt">${s.last_prompt || '(等待中)'}</span></div>
+              <div class="inset-line">回复: <span class="inset-reply">${s.last_reply || '(暂无)'}</span></div>
             </div>
           </div>
         `;
@@ -1220,7 +1477,7 @@
         else if (l.level === 'error') tagClass = 'log-tag-error';
         else if (l.level === 'heartbeat') tagClass = 'log-tag-heartbeat';
 
-        return `<div class="log-row ${tagClass}"><span class="log-timestamp">[${timeStr}]</span>${escapeHtml(l.text)}</div>`;
+        return `<div class="log-line ${tagClass}"><span class="log-stamp">[${timeStr}]</span>${escapeHtml(l.text)}</div>`;
       }).join('');
 
       if (isAtBottom) {
