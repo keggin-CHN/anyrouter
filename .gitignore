@@ -1,5 +1,8 @@
-__pycache__/
-*.pyc
-squeeze_*.txt
-squeeze_*.json
-go_proxy/anyrouter-proxy.exe
+# Go 编译产物
+anyrouter-keeper.exe
+
+# Go 测试缓存
+/tmp/
+
+# 配置（可选，如不想提交 key 则取消注释）
+# keeper_config.json

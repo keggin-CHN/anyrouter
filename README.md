@@ -1,103 +1,107 @@
-# AnyRouter Python 客户端
+# AnyRouter Go 客户端与挂机保活系统 (Go 纯净轻量版)
 
-专为 `anyrouter.top` 平台定制的 Python 客户端，针对该平台的严格限制与高并发排队机制进行了完整适配与深度伪装。
+专为 `anyrouter.top` 平台定制的 **Go 语言高性能轻量客户端与全自动化挂机排队保活工具**。
+纯 Go 标准库驱动，**免 Cgo 依赖，零第三方网络库，单文件独立二进制仅约 7MB**（较原 Python 版 38.5MB 缩小 80%+，内存占用由 120MB+ 降至约 15MB）。
+
+---
 
 ## 核心特性
 
 1. **双协议深度伪装**：
-   - **Codex 协议 (`/v1/responses`)**：适配模型 `gpt-6-astra`。伪装官方 `codex_exec` 客户端特征，注入 `x-openai-internal-codex-responses-lite`、窗口元数据、轮次元数据、客户端指纹与 reasoning 结构。
-   - **Claude Code 协议 (`/v1/messages?beta=true`)**：适配模型 `claude-fable-5-1`。伪装官方 `claude-cli/2.1.226 (external, sdk-cli)`，注入计费声明系统块、Claude Agent SDK 身份声明、Stainless 运行时特征与 64 位设备指纹。
-2. **智能轮次排队重试机制（默认：每隔 1 分钟挤一轮，每轮 5 次，间隔 5s）**：
-   - 针对平台拥挤时常见的 `429 (Service Unavailable / Too Many Requests)`、`520 (Origin Error)`、`502/503/504` 等状态码以及流内限流报错。
-   - **分轮重试策略**：同一轮内尝试 5 次（每次间隔 5s）；若 5 次均未挤入，则整轮等待 1 分钟（60s）后自动开启下一轮，持续重试直到排上挤入！
-   - 终端提供高可读性的**秒级倒计时读秒与排队轮次实时反馈**。
-3. **本地 10808 代理支持**：
-   - 默认开箱即用集成 `http://127.0.0.1:10808` 代理通道。
-4. **流式打字机输出 & 思考过程展示**：
-   - 完整支持 SSE 流式解析，区分展示 Thinking 思考过程与最终输出。
+   - **Codex 协议 (`/v1/responses`)**：适配 `gpt-6-astra`、`gpt-5-codex`、`o*` 等模型。深度伪装官方 `codex_exec/0.144.1 (Linux; x86_64)`，自动注入 Responses Lite 特征、window/turn 动态元数据及 reasoning 推理参数。
+   - **Claude Code 协议 (`/v1/messages?beta=true`)**：适配 `claude-fable-5-1` 等。深度伪装官方 `claude-cli/2.1.226 (external, sdk-cli)`，注入 8 项 Anthropic beta 特性头、计费声明系统块（`x-anthropic-billing-header`）与 64 位设备硬件指纹。
+2. **两阶段智能挂机保活状态机**：
+   - **阶段一【用不了】**：分轮循环排队挤入（默认每轮 5 次，间隔 5s；整轮未果冷却 30s）。秒级动态倒计时显示，首字出字即视为挤入成功。
+   - **阶段二【能用】**：保持可用状态，开启 30 分钟巡航倒计时，“能用就不管”；到期自动轻量测活，失效则自动跌回阶段一重新排队。
+3. **精选 4 大核心模型**：
+   - 精准收敛支持且仅保留：`gpt-6-astra`、`claude-opus-4-8`、`claude-fable-5-1`、`gemini-2.5-pro`。
+4. **10 大极简预设测活题库 & 随机轮换**：
+   - 内置 `1+1`、`ping`、`用一个字回答：好` 等超低 Token 消耗的高速响应题，每次随机抽取，杜绝平台缓存与自动化判定。
+5. **多 Key × 多模型并发矩阵**：
+   - 支持凭据池配置多个 API Key，并发为每个 Key 与模型建立独立守护通道。
+6. **专属应用图标与后台静默守护**：
+   - 内置专属路由器脉冲图标（嵌入 `.exe` 与任务栏、托盘）。
+   - 点击窗口右上角关闭按钮（✕）自动隐藏并转入后台**静默保活**，**彻底去除流氓通知弹窗与系统提示音**，安静守护不打扰。
+   - 双击托盘小图标可随时重新唤出控制面板；右键菜单支持【彻底退出程序】。
 
 ---
 
-## 安装依赖
+## 快速上手
 
-```bash
-pip install -r requirements.txt
+### 1. 运行挂机保活桌面程序 (原生桌面 GUI，双击即用)
+
+直接双击运行：
+```cmd
+anyrouter-keeper.exe
 ```
+
+- **自带专属图标与原生独立窗口**：双击直接弹出 1120×840 独立桌面窗口，无任何黑框命令行控制台，界面交互体验与原 Python 版本 1:1 像素级对齐。
+- **状态栏托盘常驻与静默模式**：关闭窗口自动进入后台静默保活状态，右下角托盘区常驻小图标，无任何弹窗通知骚扰。
+- **开放式前端源码**：前端源码位于根目录下 [`web/index.html`](file:///c:/code/anyrouter/web/index.html)，修改保存后在窗口中刷新即可即时生效。
+- **脱机单文件保障**：即使分发单文件 `anyrouter-keeper.exe` 到没有 `web/` 目录的新电脑，程序也会自动回退至内置的嵌入式前端，真正实现单文件零依赖。
+- **跨平台 Web 访问**：启动后同时在本地提供 Web 面板：`http://127.0.0.1:28888`，可在任意浏览器中直接访问。
 
 ---
 
-## 使用方法
+## 作为 Go SDK 导入项目
 
-### 1. 双模型并发一起挤（默认模式，最推荐）
+在您自己的 Go 代码中直接调用：
 
-直接启动：
-```bash
-python main.py
-```
-- **工作机制**：多线程并发，同时启动两条独立排队通道：
-  1. `Codex` (`gpt-6-astra`，基于 Responses 协议)
-  2. `Claude Code` (`claude-fable-5-1`，基于 Messages 协议)
-- **排队规则**：双模型各自独立执行“每轮 5 次，每次间隔 5s；整轮未挤上冷却 60s 开启下一轮”，直到挤成功。
-- **成果保存**：哪个模型先挤成功，立即打印其实时回复并独立保存为 `squeeze_<模型名>.txt`，另一模型继续排队不受影响。
+```go
+package main
 
-### 2. 单独指定挤某一个模型
+import (
+	"context"
+	"fmt"
+	"time"
 
-只挤 Codex (`gpt-6-astra`)：
-```bash
-python main.py -m gpt-6-astra
-```
-
-只挤 Claude Code (`claude-fable-5-1`)：
-```bash
-python main.py -m claude-fable-5-1
-```
-```bash
-python main.py -m gpt-6-astra -p "请用 Python 写一个支持泛型的 LRU 缓存类"
-```
-
-使用 Claude Code 模型提问：
-```bash
-python main.py -m claude-fable-5-1 -p "解释一下为什么 TCP 四次挥手需要 TIME_WAIT 状态"
-```
-
-指定最大重试次数（如只重试 10 次）：
-```bash
-python main.py -m gpt-6-astra -p "Hello" --max-retries 10
-```
-
-### 3. 作为 Python SDK 导入使用
-
-可以在您自己的 Python 代码中直接调用：
-
-```python
-from anyrouter_client import AnyRouterClient
-
-# 初始化客户端（默认使用 10808 代理与内置 API Key）
-client = AnyRouterClient(proxy="http://127.0.0.1:10808")
-
-# --- 1. 单次完整调用 ---
-response = client.chat(
-    model="gpt-6-astra",  # 或 "claude-fable-5-1"
-    prompt="请写一段经典的冒泡排序 Python 代码",
+	"anyrouter/pkg/client"
 )
-print(response)
 
-# --- 2. 流式逐字生成 ---
-for chunk in client.stream_chat(model="claude-fable-5-1", prompt="写一首赞美春天的短诗"):
-    chunk_type = chunk.get("type")
-    if chunk_type == "thinking":
-        print(f"[思考]: {chunk['delta']}", end="", flush=True)
-    elif chunk_type == "text":
-        print(chunk["delta"], end="", flush=True)
-    elif chunk_type == "status":
-        print(f"\n{chunk['message']}")
+func main() {
+	// 初始化客户端 (默认使用 10808 代理与内置/环境变量 Key)
+	c, err := client.NewClient(client.ClientConfig{
+		APIKey:  "sk-your-api-key",
+		Proxy:   "http://127.0.0.1:10808",
+		Timeout: 60 * time.Second,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+
+	// 1. 同步非流式调用
+	reply, err := c.Chat(ctx, "gpt-6-astra", "请用 Go 写一个并发安全的缓存类")
+	if err != nil {
+		fmt.Printf("调用失败: %v\n", err)
+	} else {
+		fmt.Println(reply)
+	}
+
+	// 2. 流式打字机调用 (区分思考过程与正文)
+	events, err := c.StreamChat(ctx, "claude-fable-5-1", "写一首短诗", nil, "", "", 2048)
+	if err != nil {
+		panic(err)
+	}
+
+	for ev := range events {
+		if ev.Type == "thinking" {
+			fmt.Printf("[思考]: %s", ev.Delta)
+		} else if ev.Type == "text" {
+			fmt.Print(ev.Delta)
+		}
+	}
+}
 ```
 
 ---
 
-## 协议与模型对照表
+## 编译指南 (如需重新构建)
 
-| 客户端类别 | 目标模型 | 协议端点 | 伪装身份 |
-| :--- | :--- | :--- | :--- |
-| **Codex** | `gpt-6-astra` | `POST /v1/responses` | `codex_exec/0.144.1` + Responses Lite |
-| **Claude Code** | `claude-fable-5-1` | `POST /v1/messages?beta=true` | `claude-cli/2.1.226` + Billing System Block |
+本项目采用 100% 纯 Go 实现，**无需 gcc，无需 Cgo**：
+
+```bash
+# 编译带内置原生应用图标、零黑框的独立桌面应用程序
+go build -ldflags="-H windowsgui -s -w" -o anyrouter-keeper.exe .
+```

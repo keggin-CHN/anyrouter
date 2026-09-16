@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnyRouter 多Key自动挂机排队保活工具 v2.6 (Go 轻量原生版)</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <style>
+    :root {
+      --bg-main: #13141f;
+      --bg-header: #1a1b2b;
+      --bg-card: #1f2235;
+      --bg-input: #161724;
+      --border-color: #2a2d45;
+      --fg-text: #f1f5f9;
+      --fg-muted: #94a3b8;
+      --accent-indigo: #6366f1;
+      --accent-indigo-hover: #4f46e5;
+      --accent-green: #10b981;
+      --accent-green-hover: #059669;
+      --accent-yellow: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-red-hover: #dc2626;
+      --accent-blue: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background: var(--bg-main); color: var(--fg-text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* 1. 顶部 Header 状态栏 */
+    header { background: var(--bg-header); height: 46px; border-bottom: 1px solid var(--border-color); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; user-select: none; flex-shrink: 0; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-title { font-size: 13px; font-weight: 700; color: #ffffff; letter-spacing: 0.3px; }
+    .header-badge { font-size: 10px; font-weight: 700; background: #312e81; color: #a5b4fc; padding: 2px 8px; border-radius: 4px; }
+    .proxy-status-tag { font-size: 11px; font-weight: 700; color: var(--accent-yellow); display: flex; align-items: center; gap: 6px; }
+    .proxy-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
+
+    /* 主容器 */
+    .main-container { flex: 1; display: flex; flex-direction: column; padding: 12px 16px; overflow: hidden; gap: 10px; }
+
+    /* 2. 顶部卡片：API Keys 凭据池 */
+    .card-frame { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; position: relative; }
+    .card-legend { font-size: 11px; font-weight: 700; color: #818cf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    
+    .keys-row { display: flex; gap: 12px; align-items: stretch; }
+    .keys-textarea { flex: 1; height: 60px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: #e2e8f0; font-family: Consolas, monospace; font-size: 12px; padding: 6px 10px; resize: none; outline: none; line-height: 1.4; }
+    .keys-textarea:focus { border-color: var(--accent-indigo); }
+    
+    .keys-side-col { display: flex; flex-direction: column; justify-content: space-between; width: 170px; }
+    .key-counter-badge { font-size: 11px; font-weight: 700; color: #34d399; text-align: center; padding: 2px 4px; }
+    .btn-tool { background: #374151; color: #e2e8f0; border: none; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .btn-tool:hover { background: #4b5563; color: #fff; }
+    .btn-tool-primary { background: #4338ca; color: #fff; }
+    .btn-tool-primary:hover { background: #3730a3; }
+
+    /* 3. 中部三大面板 Notebook */
+    .notebook-container { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+    .tab-header-row { display: flex; background: #1a1c2b; border-bottom: 1px solid var(--border-color); padding: 0 4px; user-select: none; }
+    .notebook-tab-btn { background: transparent; border: none; color: #94a3b8; font-size: 12px; font-weight: 700; padding: 9px 18px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+    .notebook-tab-btn:hover { color: #cbd5e1; }
+    .notebook-tab-btn.active { background: #4f46e5; color: #ffffff; border-bottom-color: #ffffff; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+
+    .tab-body-area { flex: 1; overflow-y: auto; padding: 12px 14px; position: relative; }
+    .tab-page { display: none; height: 100%; }
+    .tab-page.active { display: flex; flex-direction: column; }
+
+    /* Tab 1: 模型选择 */
+    .tab-sub-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #272a44; font-size: 12px; }
+    .model-actions-left { display: flex; align-items: center; gap: 8px; }
+    .model-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 10px; overflow-y: auto; padding-right: 4px; }
+    .model-card-item { background: #161724; border: 1px solid #272a44; border-radius: 6px; padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; transition: all 0.15s; user-select: none; }
+    .model-card-item:hover { border-color: #4f46e5; background: #1c1e30; }
+    .model-card-item input[type="checkbox"] { margin-top: 3px; cursor: pointer; accent-color: #4f46e5; width: 15px; height: 15px; }
+    .model-card-content { flex: 1; }
+    .model-card-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .model-card-title { font-size: 13px; font-weight: 700; color: #f8fafc; }
+    .model-type-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+    .type-codex { background: #312e81; color: #c7d2fe; border: 1px solid #4338ca; }
+    .type-claude { background: #083344; color: #67e8f9; border: 1px solid #0e7490; }
+    .type-openai { background: #3b0764; color: #e9d5ff; border: 1px solid #6b21a8; }
+    .model-card-desc { font-size: 11px; color: var(--fg-muted); }
+
+    /* Tab 2: 监控矩阵 */
+    .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 12px; overflow-y: auto; flex: 1; }
+    .channel-box { background: #161724; border: 1px solid #272a44; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.2s, transform 0.15s; }
+    .channel-box:hover { border-color: #4f46e5; transform: translateY(-1px); }
+    .channel-head-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; }
+    .badge-key { background: #312e81; color: #c7d2fe; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .badge-model { background: #1e293b; color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid #0284c7; }
+    .badge-state-avail { background: #064e3b; color: #6ee7b7; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+    .badge-state-squeezing { background: #78350f; color: #fde68a; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+    .badge-state-stopped { background: #374151; color: #9ca3af; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .channel-state-text { font-size: 13px; font-weight: 700; margin: 4px 0; }
+    .channel-detail-panel { background: #0f1019; border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--fg-muted); }
+    .detail-line { margin: 2px 0; word-break: break-all; }
+    .detail-val { color: #f1f5f9; }
+    .detail-val-reply { color: #34d399; font-family: Consolas, monospace; }
+
+    /* Tab 3: 全参数配置 */
+    .settings-subcard { background: #161724; border: 1px solid #272a44; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; }
+    .settings-legend { font-size: 11px; font-weight: 700; color: #818cf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .prompts-textarea { width: 100%; height: 95px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; color: #fff; font-family: Consolas, monospace; font-size: 11px; padding: 6px 8px; resize: none; outline: none; line-height: 1.4; }
+    .prompts-textarea:focus { border-color: var(--accent-indigo); }
+    .params-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .param-field { display: flex; flex-direction: column; gap: 4px; }
+    .param-label { font-size: 11px; font-weight: 600; color: #cbd5e1; }
+    .param-input, .param-select { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; color: #fff; font-size: 12px; padding: 6px 8px; outline: none; }
+    .param-input:focus, .param-select:focus { border-color: var(--accent-indigo); }
+
+    /* 4. 操作控制条 */
+    .action-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; user-select: none; flex-shrink: 0; }
+    .action-left { display: flex; align-items: center; gap: 10px; }
+    .btn-action-start { background: var(--accent-green); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 6px; }
+    .btn-action-start:hover { background: var(--accent-green-hover); }
+    .btn-action-stop { background: #4b5563; color: #9ca3af; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: not-allowed; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .btn-action-stop.enabled { background: var(--accent-red); color: #fff; cursor: pointer; }
+    .btn-action-stop.enabled:hover { background: var(--accent-red-hover); }
+    .matrix-status-summary { font-size: 12px; font-weight: 700; color: #818cf8; margin-left: 6px; }
+    .action-right { display: flex; align-items: center; gap: 8px; }
+    .btn-sec-action { background: #33374f; color: #e2e8f0; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn-sec-action:hover { background: #434867; color: #fff; }
+
+    /* 5. 底部实时日志监控窗口 */
+    .log-container-card { height: 160px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+    .log-legend { font-size: 11px; font-weight: 700; color: #818cf8; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+    .log-scroller { flex: 1; background: #0f1019; border: 1px solid #25283f; border-radius: 6px; overflow-y: auto; padding: 6px 10px; font-family: Consolas, Monaco, monospace; font-size: 11px; line-height: 1.45; }
+    .log-row { margin-bottom: 3px; word-break: break-all; }
+    .log-timestamp { color: #64748b; margin-right: 6px; }
+    .log-tag-info { color: #60a5fa; }
+    .log-tag-queue { color: #facc15; }
+    .log-tag-success { color: #34d399; font-weight: 700; }
+    .log-tag-warn { color: #fb923c; }
+    .log-tag-error { color: #f87171; font-weight: 700; }
+    .log-tag-heartbeat { color: #38bdf8; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 顶部 Header 状态栏 -->
+  <header>
+    <div class="header-left">
+      <img src="/favicon.ico" width="20" height="20" style="border-radius:4px;vertical-align:middle;" onerror="this.style.display='none'">
+      <span class="header-title">AnyRouter 多Key并发自动挂机排队保活矩阵</span>
+      <span class="header-badge">Go 原生桌面版</span>
+      <button class="btn-tool" style="font-size:11px;padding:3px 10px;background:#312e81;color:#c7d2fe;border:1px solid #4338ca;cursor:pointer;margin-left:8px;" onclick="hideToTray()" title="最小化隐藏到系统右下角托盘">🔽 隐藏到托盘</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:11px;color:#94a3b8;">💡 提示：点击右上角 ❌ 可直接进入后台静默保活</span>
+      <div id="proxy-status" class="proxy-status-tag">
+        <span class="proxy-dot"></span>
+        <span id="proxy-status-text">[● 正在检测 10808 代理...]</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+
+    <!-- 2. 顶部卡片：API Keys 凭据池 -->
+    <div class="card-frame">
+      <div class="card-legend">
+        <span>🔑 API Keys 凭据池 (支持多 Key 一行一个，自动去重与并发)</span>
+      </div>
+      <div class="keys-row">
+        <textarea id="keys-input" class="keys-textarea" placeholder="在此粘贴 API Keys，每行一个 key&#10;sk-xxxx...&#10;sk-yyyy..." oninput="onKeysChanged()"></textarea>
+        <div class="keys-side-col">
+          <div id="key-count-lbl" class="key-counter-badge">已识别 0 个 Key</div>
+          <button class="btn-tool" onclick="pasteFromClipboard()">📋 粘贴剪贴板</button>
+          <button class="btn-tool btn-tool-primary" onclick="refreshModelList()">🔍 刷新模型列表</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 中部三大面板 Notebook -->
+    <div class="notebook-container">
+      <div class="tab-header-row">
+        <button id="tab-btn-monitor" class="notebook-tab-btn active" onclick="switchTab('monitor')">📊 多 Key 并发监控矩阵 (实时状态)</button>
+        <button id="tab-btn-models" class="notebook-tab-btn" onclick="switchTab('models')">📋 模型选择 (<span id="tab-model-count">0</span>)</button>
+        <button id="tab-btn-settings" class="notebook-tab-btn" onclick="switchTab('settings')">⚙ 全参数高级配置与题库</button>
+      </div>
+
+      <div class="tab-body-area">
+
+        <!-- Tab 2 (默认优先): 监控矩阵 -->
+        <div id="page-monitor" class="tab-page active">
+          <div class="tab-sub-toolbar">
+            <span id="monitor-summary-lbl" style="color:#94a3b8;">正在加载通道状态...</span>
+            <span style="color:#64748b;font-size:11px;">1秒动态跳秒刷新</span>
+          </div>
+          <div id="monitor-grid" class="monitor-grid"></div>
+        </div>
+
+        <!-- Tab 1: 模型选择 -->
+        <div id="page-models" class="tab-page">
+          <div class="tab-sub-toolbar">
+            <div class="model-actions-left">
+              <button class="btn-tool" onclick="selectAllModels()">全选</button>
+              <button class="btn-tool" onclick="deselectAllModels()">全不选</button>
+              <button class="btn-tool" onclick="resetDefaultModels()">恢复推荐</button>
+            </div>
+            <span id="models-header-count" style="color:#94a3b8;">共加载 0 个模型 (已勾选 0 个)</span>
+          </div>
+          <div id="model-list-grid" class="model-list-grid"></div>
+        </div>
+
+        <!-- Tab 3: 全参数高级配置 -->
+        <div id="page-settings" class="tab-page">
+          <!-- 题库设置 -->
+          <div class="settings-subcard">
+            <div class="settings-legend">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="cfg-random-prompt" style="accent-color:#34d399;" checked>
+                <span style="color:#34d399;">🎲 启用随机测活问题轮换 (防止平台缓存与固定单一特征识别)</span>
+              </label>
+              <button class="btn-tool" onclick="restoreDefaultPrompts()">↺ 恢复 10 大经典预设题库</button>
+            </div>
+            <textarea id="cfg-prompts-input" class="prompts-textarea" placeholder="每行一道题..."></textarea>
+          </div>
+
+          <!-- 参数设置 -->
+          <div class="settings-subcard">
+            <div class="settings-legend">
+              <span>⚙ 保活与排队核心参数设置</span>
+            </div>
+            <div class="params-grid">
+              <div class="param-field">
+                <label class="param-label">每轮尝试次数：</label>
+                <input id="cfg-tries" class="param-input" type="number" min="1" max="20" value="5">
+              </div>
+              <div class="param-field">
+                <label class="param-label">轮内单次间隔 (秒)：</label>
+                <input id="cfg-intra-delay" class="param-input" type="number" min="1" max="60" value="5">
+              </div>
+              <div class="param-field">
+                <label class="param-label">轮末冷却等待 (秒)：</label>
+                <input id="cfg-cooldown" class="param-input" type="number" min="5" max="300" value="30">
+              </div>
+              <div class="param-field">
+                <label class="param-label">测活巡航周期 (分钟)：</label>
+                <input id="cfg-interval" class="param-input" type="number" min="1" max="180" value="30">
+              </div>
+              <div class="param-field">
+                <label class="param-label">测活重试次数：</label>
+                <input id="cfg-retries" class="param-input" type="number" min="1" max="10" value="3">
+              </div>
+              <div class="param-field">
+                <label class="param-label">本地代理通道：</label>
+                <input id="cfg-proxy" class="param-input" type="text" value="http://127.0.0.1:10808">
+              </div>
+              <div class="param-field">
+                <label class="param-label">点击关闭行为：</label>
+                <select id="cfg-close-behavior" class="param-select">
+                  <option value="silent">进入后台静默运行 (默认)</option>
+                  <option value="exit">彻底退出程序</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 4. 操作控制条 -->
+    <div class="action-bar">
+      <div class="action-left">
+        <button id="btn-start" class="btn-action-start" onclick="startKeepalive()">🚀 开始并发挂机保活</button>
+        <button id="btn-stop" class="btn-action-stop" onclick="stopKeepalive()">⏹ 停止挂机</button>
+        <span id="matrix-summary-text" class="matrix-status-summary"></span>
+      </div>
+      <div class="action-right">
+        <button class="btn-sec-action" onclick="saveAllConfig()">💾 保存配置</button>
+        <button class="btn-sec-action" onclick="clearLiveLogs()">🧹 清空日志</button>
+      </div>
+    </div>
+
+    <!-- 5. 底部实时日志监控窗口 -->
+    <div class="log-container-card">
+      <div class="log-legend">
+        <span>🖥 实时两阶段并发挂机日志</span>
+      </div>
+      <div id="log-scroller" class="log-scroller"></div>
+    </div>
+
+  </div>
+
+  <script>
+    let isRunning = false;
+    let configData = null;
+    let modelCandidates = [];
+
+    const defaultPromptsList = [
+      "1+1",
+      "用一个字回答：好",
+      "输出一个数字: 8",
+      "2*3等于几",
+      "Hi, reply 1 word.",
+      "请回复'pong'",
+      "3+5等于几",
+      "ping",
+      "100-1等于多少",
+      "从1数到3"
+    ];
+
+    function switchTab(tabKey) {
+      document.querySelectorAll('.notebook-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+      
+      const btn = document.getElementById('tab-btn-' + tabKey);
+      const page = document.getElementById('page-' + tabKey);
+      if (btn && page) {
+        btn.classList.add('active');
+        page.classList.add('active');
+      }
+    }
+
+    function onKeysChanged() {
+      const text = document.getElementById('keys-input').value;
+      const keys = text.split('\n').map(k => k.trim()).filter(Boolean);
+      const uniqueKeys = Array.from(new Set(keys));
+      document.getElementById('key-count-lbl').innerText = `已识别 ${uniqueKeys.length} 个 Key`;
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const area = document.getElementById('keys-input');
+          area.value = (area.value ? area.value + '\n' : '') + text.trim();
+          onKeysChanged();
+        }
+      } catch (e) {
+        alert("无法直接读取剪贴板，请手动按 Ctrl+V 粘贴。");
+      }
+    }
+
+    async function refreshModelList() {
+      await fetchStatus();
+      alert("已刷新模型与通道列表！");
+    }
+
+    async function checkProxyStatus() {
+      try {
+        const res = await fetch('/api/proxy-check');
+        const data = await res.json();
+        const tag = document.getElementById('proxy-status');
+        const text = document.getElementById('proxy-status-text');
+        if (data.ok) {
+          tag.style.color = '#34d399';
+          text.innerText = `[● 10808 代理连接就绪]`;
+        } else {
+          tag.style.color = '#ef4444';
+          text.innerText = `[● 代理未连通 (${data.proxy})]`;
+        }
+      } catch (e) {
+        document.getElementById('proxy-status').style.color = '#f59e0b';
+        document.getElementById('proxy-status-text').innerText = `[● 代理检测中...]`;
+      }
+    }
+
+    async function fetchConfig() {
+      try {
+        const res = await fetch('/api/config');
+        configData = await res.json();
+        renderConfig();
+      } catch (e) {
+        console.error("fetchConfig failed", e);
+      }
+    }
+
+    function renderConfig() {
+      if (!configData) return;
+      document.getElementById('keys-input').value = (configData.api_keys || []).join('\n');
+      onKeysChanged();
+
+      document.getElementById('cfg-random-prompt').checked = configData.random_heartbeat !== false;
+      document.getElementById('cfg-prompts-input').value = (configData.heartbeat_prompts || defaultPromptsList).join('\n');
+      document.getElementById('cfg-tries').value = configData.tries_per_round || 5;
+      document.getElementById('cfg-intra-delay').value = configData.intra_round_delay_sec || 5;
+      document.getElementById('cfg-cooldown').value = configData.round_cooldown_sec || 30;
+      document.getElementById('cfg-interval').value = configData.check_interval_min || 30;
+      document.getElementById('cfg-retries').value = configData.max_retries || 3;
+      document.getElementById('cfg-proxy').value = configData.proxy || 'http://127.0.0.1:10808';
+      document.getElementById('cfg-close-behavior').value = configData.close_behavior || 'silent';
+
+      renderModelSelection();
+    }
+
+    function renderModelSelection() {
+      const container = document.getElementById('model-list-grid');
+      const selected = new Set(configData?.selected_models || []);
+      document.getElementById('tab-model-count').innerText = selected.size;
+      document.getElementById('models-header-count').innerText = `共加载 ${modelCandidates.length} 个模型 (已勾选 ${selected.size} 个)`;
+
+      container.innerHTML = modelCandidates.map(m => {
+        const isChecked = selected.has(m.id) ? 'checked' : '';
+        let badgeClass = 'type-claude';
+        if (m.type.includes('Codex') || m.type.includes('Responses')) badgeClass = 'type-codex';
+        else if (m.type.includes('OpenAI')) badgeClass = 'type-openai';
+
+        return `
+          <label class="model-card-item">
+            <input type="checkbox" value="${m.id}" ${isChecked} onchange="onModelCheckboxChanged()">
+            <div class="model-card-content">
+              <div class="model-card-title-row">
+                <span class="model-card-title">${m.id}</span>
+                <span class="model-type-badge ${badgeClass}">${m.type}</span>
+              </div>
+              <div class="model-card-desc">${m.desc}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function onModelCheckboxChanged() {
+      const checkedBoxes = document.querySelectorAll('#model-list-grid input:checked');
+      const selectedIds = Array.from(checkedBoxes).map(b => b.value);
+      configData.selected_models = selectedIds;
+      document.getElementById('tab-model-count').innerText = selectedIds.length;
+      document.getElementById('models-header-count').innerText = `共加载 ${modelCandidates.length} 个模型 (已勾选 ${selectedIds.length} 个)`;
+    }
+
+    function selectAllModels() {
+      document.querySelectorAll('#model-list-grid input[type="checkbox"]').forEach(b => b.checked = true);
+      onModelCheckboxChanged();
+    }
+
+    function deselectAllModels() {
+      document.querySelectorAll('#model-list-grid input[type="checkbox"]').forEach(b => b.checked = false);
+      onModelCheckboxChanged();
+    }
+
+    function resetDefaultModels() {
+      const defaults = new Set(["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"]);
+      document.querySelectorAll('#model-list-grid input[type="checkbox"]').forEach(b => {
+        b.checked = defaults.has(b.value);
+      });
+      onModelCheckboxChanged();
+    }
+
+    function restoreDefaultPrompts() {
+      document.getElementById('cfg-prompts-input').value = defaultPromptsList.join('\n');
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        isRunning = data.is_running;
+        if (data.models && modelCandidates.length === 0) {
+          modelCandidates = data.models;
+          renderModelSelection();
+        }
+        updateControlBar();
+        renderMonitorCards(data.states || []);
+      } catch (e) {
+        console.error("fetchStatus error", e);
+      }
+    }
+
+    function updateControlBar() {
+      const startBtn = document.getElementById('btn-start');
+      const stopBtn = document.getElementById('btn-stop');
+      const summary = document.getElementById('matrix-summary-text');
+      if (isRunning) {
+        startBtn.style.display = 'none';
+        stopBtn.className = 'btn-action-stop enabled';
+        summary.innerText = "🟢 正在并发挂机保活中...";
+      } else {
+        startBtn.style.display = 'flex';
+        stopBtn.className = 'btn-action-stop';
+        summary.innerText = "⚪ 挂机已停止/未启动";
+      }
+    }
+
+    function renderMonitorCards(states) {
+      const grid = document.getElementById('monitor-grid');
+      const summaryLbl = document.getElementById('monitor-summary-lbl');
+
+      if (states.length === 0) {
+        summaryLbl.innerText = "尚未开启保活通道。点击下方【🚀 开始并发挂机保活】即可启动。";
+        grid.innerHTML = '<div style="color:#64748b;font-size:12px;padding:20px;">暂无运行中的通道。请配置好 API Keys 与模型后点击启动。</div>';
+        return;
+      }
+
+      summaryLbl.innerText = `已开启 ${states.length} 个并发通道 (多 Key × 多模型)`;
+      grid.innerHTML = states.map(s => {
+        const isAvail = s.status === 'available';
+        const isSqueezing = s.status === 'squeezing';
+        let statusBadge = `<span class="badge-state-stopped">⚪ 已停止</span>`;
+        let statusColor = '#94a3b8';
+
+        if (isAvail) {
+          statusBadge = `<span class="badge-state-avail">🟢 能用 (阶段二)</span>`;
+          statusColor = '#34d399';
+        } else if (isSqueezing) {
+          statusBadge = `<span class="badge-state-squeezing">🟡 用不了 (阶段一)</span>`;
+          statusColor = '#fbbf24';
+        }
+
+        return `
+          <div class="channel-box">
+            <div class="channel-head-row">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="badge-key">${s.key_label} (${s.key_masked})</span>
+                <span class="badge-model">${s.model_id}</span>
+              </div>
+              ${statusBadge}
+            </div>
+            <div class="channel-state-text" style="color:${statusColor};">
+              ${s.status_text}
+            </div>
+            <div class="channel-detail-panel">
+              <div class="detail-line">最近随机提问: <span class="detail-val">${s.last_prompt || '(等待中)'}</span></div>
+              <div class="detail-line">最近响应摘要: <span class="detail-val-reply">${s.last_reply || '(暂无)'}</span></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const logs = await res.json();
+        renderLogLines(logs);
+      } catch (e) {}
+    }
+
+    function renderLogLines(logs) {
+      const scroller = document.getElementById('log-scroller');
+      if (!logs || logs.length === 0) return;
+      const isAtBottom = scroller.scrollHeight - scroller.clientHeight <= scroller.scrollTop + 30;
+
+      scroller.innerHTML = logs.map(l => {
+        const timeStr = new Date(l.timestamp).toLocaleTimeString();
+        let tagClass = 'log-tag-info';
+        if (l.level === 'queue') tagClass = 'log-tag-queue';
+        else if (l.level === 'success') tagClass = 'log-tag-success';
+        else if (l.level === 'warn') tagClass = 'log-tag-warn';
+        else if (l.level === 'error') tagClass = 'log-tag-error';
+        else if (l.level === 'heartbeat') tagClass = 'log-tag-heartbeat';
+
+        return `<div class="log-row ${tagClass}"><span class="log-timestamp">[${timeStr}]</span>${escapeHtml(l.text)}</div>`;
+      }).join('');
+
+      if (isAtBottom) {
+        scroller.scrollTop = scroller.scrollHeight;
+      }
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    async function clearLiveLogs() {
+      await fetch('/api/clear-logs', { method: 'POST' });
+      document.getElementById('log-scroller').innerHTML = '';
+    }
+
+    async function startKeepalive() {
+      await saveAllConfig(false);
+      await fetch('/api/start', { method: 'POST' });
+      await fetchStatus();
+      switchTab('monitor');
+    }
+
+    async function stopKeepalive() {
+      await fetch('/api/stop', { method: 'POST' });
+      await fetchStatus();
+    }
+
+    async function hideToTray() {
+      try {
+        await fetch('/api/hide', { method: 'POST' });
+      } catch (e) {}
+    }
+
+    async function saveAllConfig(notify = true) {
+      const keysText = document.getElementById('keys-input').value;
+      const keys = keysText.split('\n').map(k => k.trim()).filter(Boolean);
+      if (keys.length === 0) {
+        alert("请至少在凭据池中填入一个有效的 API Key！");
+        return;
+      }
+      const uniqueKeys = Array.from(new Set(keys));
+      const promptsText = document.getElementById('cfg-prompts-input').value;
+      const prompts = promptsText.split('\n').map(p => p.trim()).filter(Boolean);
+
+      const payload = {
+        api_keys: uniqueKeys,
+        api_key: uniqueKeys[0],
+        proxy: document.getElementById('cfg-proxy').value.trim(),
+        tries_per_round: parseInt(document.getElementById('cfg-tries').value) || 5,
+        intra_round_delay_sec: parseInt(document.getElementById('cfg-intra-delay').value) || 5,
+        round_cooldown_sec: parseInt(document.getElementById('cfg-cooldown').value) || 30,
+        check_interval_min: parseInt(document.getElementById('cfg-interval').value) || 30,
+        max_retries: parseInt(document.getElementById('cfg-retries').value) || 3,
+        random_heartbeat: document.getElementById('cfg-random-prompt').checked,
+        heartbeat_prompts: prompts.length > 0 ? prompts : defaultPromptsList,
+        heartbeat_prompt: prompts.length > 0 ? prompts[0] : "1+1",
+        selected_models: (configData && configData.selected_models && configData.selected_models.length > 0) ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"],
+        close_behavior: document.getElementById('cfg-close-behavior').value
+      };
+
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        configData = payload;
+        if (notify) alert("全部配置已成功保存并重新载入生效！");
+        await fetchStatus();
+      }
+    }
+
+    // Initial load
+    fetchConfig();
+    fetchStatus();
+    fetchLogs();
+    checkProxyStatus();
+
+    // 1-second auto tick
+    setInterval(fetchStatus, 1000);
+    setInterval(fetchLogs, 1500);
+    setInterval(checkProxyStatus, 10000);
+  </script>
+</body>
+</html>
