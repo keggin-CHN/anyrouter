@@ -226,25 +226,29 @@ func TestFourModelsExclusiveList(t *testing.T) {
 }
 
 func TestClientDeepMasqueradeVerification(t *testing.T) {
-	c, err := client.NewClient(client.ClientConfig{
+	_, err := client.NewClient(client.ClientConfig{
 		APIKey: "sk-test-fake-key",
 	})
 	if err != nil {
 		t.Fatalf("NewClient error: %v", err)
 	}
 
-	// 验证 Codex 协议特征
-	if !client.IsCodexModel("gpt-6-astra") {
-		t.Fatalf("gpt-6-astra should be codex model")
+	// 验证 4 大模型各自的协议体系与深度伪装
+	if client.DetectProtocol("gpt-6-astra") != client.ProtocolCodex {
+		t.Fatalf("gpt-6-astra should be codex protocol")
 	}
-	if client.IsCodexModel("claude-fable-5-1") {
-		t.Fatalf("claude-fable-5-1 should be claude model")
+	if client.DetectProtocol("claude-opus-4-8") != client.ProtocolClaude {
+		t.Fatalf("claude-opus-4-8 should be claude protocol")
+	}
+	if client.DetectProtocol("claude-fable-5-1") != client.ProtocolClaude {
+		t.Fatalf("claude-fable-5-1 should be claude protocol")
+	}
+	if client.DetectProtocol("gemini-2.5-pro") != client.ProtocolOpenAI {
+		t.Fatalf("gemini-2.5-pro should be openai protocol")
 	}
 
 	// 验证 10 大题库存在且完备
 	if len(keeper.DefaultHeartbeatPrompts) != 10 {
 		t.Fatalf("expected 10 default prompts, got %d", len(keeper.DefaultHeartbeatPrompts))
 	}
-
-	_ = c
 }

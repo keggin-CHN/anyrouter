@@ -10,7 +10,7 @@ import (
 func (c *AnyRouterClient) createClaudeHeaders(sessionID string, retryCount int) http.Header {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
-	headers.Set("Accept", "application/json")
+	headers.Set("Accept", "text/event-stream, application/json")
 	headers.Set("Authorization", "Bearer "+c.apiKey)
 	headers.Set("Anthropic-Version", "2023-06-01")
 	headers.Set("Anthropic-Dangerous-Direct-Browser-Access", "true")

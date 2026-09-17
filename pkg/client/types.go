@@ -14,6 +14,16 @@ const (
 	CodexVersion             = "0.144.1"
 )
 
+// ProtocolType identifies the backend API protocol and client masquerade to use.
+type ProtocolType string
+
+const (
+	ProtocolCodex  ProtocolType = "codex"  // OpenAI Responses API (/v1/responses) with codex_exec masquerade
+	ProtocolClaude ProtocolType = "claude" // Anthropic Messages API (/v1/messages?beta=true) with claude-cli masquerade
+	ProtocolOpenAI ProtocolType = "openai" // OpenAI Chat Completions (/v1/chat/completions) for Gemini and standard models
+)
+
+
 // Message represents a chat message between user and assistant.
 type Message struct {
 	Role    string `json:"role"`

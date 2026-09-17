@@ -4,16 +4,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 )
 
-var codexModelRegex = regexp.MustCompile(`(?i)(astra|codex|gpt|^o\d)`)
+// DetectProtocol inspects the model identifier and determines the exact backend protocol and client masquerade.
+func DetectProtocol(modelID string) ProtocolType {
+	m := strings.ToLower(strings.TrimSpace(modelID))
+	// 1. Codex / Responses protocol (e.g. gpt-6-astra, gpt-5-codex, o1, o3)
+	if strings.Contains(m, "astra") || strings.Contains(m, "codex") || strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") {
+		return ProtocolCodex
+	}
+	// 2. Claude Code Messages protocol (e.g. claude-fable-5-1, claude-opus-4-8, claude-opus-4-7, claude-sonnet)
+	if strings.Contains(m, "claude") || strings.Contains(m, "fable") || strings.Contains(m, "opus") || strings.Contains(m, "sonnet") || strings.Contains(m, "haiku") {
+		return ProtocolClaude
+	}
+	// 3. OpenAI Chat Completions protocol (e.g. gemini-2.5-pro, gpt-4o, etc.)
+	return ProtocolOpenAI
+}
 
 // IsCodexModel determines if a model identifier belongs to the Codex / Responses API family.
 func IsCodexModel(modelID string) bool {
-	return codexModelRegex.MatchString(strings.ToLower(modelID))
+	return DetectProtocol(modelID) == ProtocolCodex
+}
+
+// IsClaudeModel determines if a model identifier belongs to the Anthropic Claude Messages API family.
+func IsClaudeModel(modelID string) bool {
+	return DetectProtocol(modelID) == ProtocolClaude
+}
+
+// IsOpenAIModel determines if a model identifier belongs to the standard OpenAI / Chat Completions API family.
+func IsOpenAIModel(modelID string) bool {
+	return DetectProtocol(modelID) == ProtocolOpenAI
 }
 
 type codexTurnMetadata struct {

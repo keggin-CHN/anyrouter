@@ -155,3 +155,85 @@ data: [DONE]
 		t.Errorf("unexpected assembled thinking: %s", fullThinking.String())
 	}
 }
+
+func TestProtocolDetectionMatrix(t *testing.T) {
+	cases := []struct {
+		model    string
+		expected ProtocolType
+	}{
+		{"gpt-6-astra", ProtocolCodex},
+		{"gpt-5-codex", ProtocolCodex},
+		{"o1-preview", ProtocolCodex},
+		{"o3-mini", ProtocolCodex},
+		{"claude-opus-4-8", ProtocolClaude},
+		{"claude-opus-4-7", ProtocolClaude},
+		{"claude-fable-5-1", ProtocolClaude},
+		{"claude-3-7-sonnet", ProtocolClaude},
+		{"gemini-2.5-pro", ProtocolOpenAI},
+		{"gpt-4o", ProtocolOpenAI},
+	}
+
+	for _, tc := range cases {
+		got := DetectProtocol(tc.model)
+		if got != tc.expected {
+			t.Errorf("DetectProtocol(%q) = %q; want %q", tc.model, got, tc.expected)
+		}
+	}
+}
+
+func TestOpenAIMasquerade(t *testing.T) {
+	c, err := NewClient(ClientConfig{APIKey: "sk-test-key"})
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	headers := c.createOpenAIHeaders("sess-openai")
+	if headers.Get("Authorization") != "Bearer sk-test-key" {
+		t.Errorf("wrong auth: %s", headers.Get("Authorization"))
+	}
+	if !strings.Contains(headers.Get("Accept"), "text/event-stream") {
+		t.Errorf("missing text/event-stream in Accept: %s", headers.Get("Accept"))
+	}
+
+	body := c.buildOpenAIBody("gemini-2.5-pro", []Message{{Role: "user", Content: "1+1=?"}}, "sys instruction", 128)
+	bBytes, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal err: %v", err)
+	}
+	jsonStr := string(bBytes)
+	if !strings.Contains(jsonStr, "gemini-2.5-pro") || !strings.Contains(jsonStr, "1+1=?") || !strings.Contains(jsonStr, "sys instruction") {
+		t.Errorf("openai body incomplete: %s", jsonStr)
+	}
+}
+
+func TestOpenAISSEParser(t *testing.T) {
+	sseInput := `
+data: {"id":"chat-1","choices":[{"delta":{"thinking":"thinking about 1+1"},"finish_reason":null}]}
+data: {"id":"chat-1","choices":[{"delta":{"content":"The answer is "},"finish_reason":null}]}
+data: {"id":"chat-1","choices":[{"delta":{"content":"2."},"finish_reason":"stop"}]}
+data: [DONE]
+`
+	out := make(chan StreamEvent, 10)
+	go func() {
+		parseOpenAISSE(bytes.NewBufferString(sseInput), out)
+		close(out)
+	}()
+
+	var fullText strings.Builder
+	var fullThinking strings.Builder
+	for ev := range out {
+		if ev.Type == "text" {
+			fullText.WriteString(ev.Delta)
+		} else if ev.Type == "thinking" {
+			fullThinking.WriteString(ev.Delta)
+		}
+	}
+
+	if fullText.String() != "The answer is 2." {
+		t.Errorf("unexpected text: %s", fullText.String())
+	}
+	if fullThinking.String() != "thinking about 1+1" {
+		t.Errorf("unexpected thinking: %s", fullThinking.String())
+	}
+}
+

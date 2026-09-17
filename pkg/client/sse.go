@@ -159,3 +159,88 @@ func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
 		FullThinking: fullThinking.String(),
 	}
 }
+
+// parseOpenAISSE parses an SSE stream produced by standard OpenAI /v1/chat/completions (e.g. Gemini 2.5 Pro).
+func parseOpenAISSE(r io.Reader, out chan<- StreamEvent) {
+	scanner := bufio.NewScanner(r)
+	buf := make([]byte, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	var fullText strings.Builder
+	var fullThinking strings.Builder
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+
+		dataStr := strings.TrimSpace(line[5:])
+		if dataStr == "" || dataStr == "[DONE]" {
+			break
+		}
+
+		var payload map[string]interface{}
+		if err := json.Unmarshal([]byte(dataStr), &payload); err != nil {
+			continue
+		}
+
+		if errObj, hasErr := payload["error"].(map[string]interface{}); hasErr {
+			msg, _ := errObj["message"].(string)
+			if msg == "" {
+				msg = fmt.Sprintf("%v", errObj)
+			}
+			out <- StreamEvent{
+				Type:   "stream_error",
+				Reason: msg,
+			}
+			return
+		}
+
+		choices, ok := payload["choices"].([]interface{})
+		if !ok || len(choices) == 0 {
+			continue
+		}
+
+		choice, ok := choices[0].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		delta, ok := choice["delta"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Reasoning / Thinking chunk
+		if reasoning, ok := delta["reasoning_content"].(string); ok && reasoning != "" {
+			fullThinking.WriteString(reasoning)
+			out <- StreamEvent{
+				Type:  "thinking",
+				Delta: reasoning,
+			}
+		} else if thinking, ok := delta["thinking"].(string); ok && thinking != "" {
+			fullThinking.WriteString(thinking)
+			out <- StreamEvent{
+				Type:  "thinking",
+				Delta: thinking,
+			}
+		}
+
+		// Text content chunk
+		if content, ok := delta["content"].(string); ok && content != "" {
+			fullText.WriteString(content)
+			out <- StreamEvent{
+				Type:  "text",
+				Delta: content,
+			}
+		}
+	}
+
+	out <- StreamEvent{
+		Type:         "done",
+		FullText:     fullText.String(),
+		FullThinking: fullThinking.String(),
+	}
+}
+

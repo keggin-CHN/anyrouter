@@ -134,10 +134,15 @@ func (c *AnyRouterClient) StreamChat(
 		messages = append(messages, Message{Role: "user", Content: prompt})
 	}
 
-	isCodex := IsCodexModel(model)
-	endpoint := fmt.Sprintf("%s/v1/messages?beta=true", c.baseURL)
-	if isCodex {
+	protocol := DetectProtocol(model)
+	var endpoint string
+	switch protocol {
+	case ProtocolCodex:
 		endpoint = fmt.Sprintf("%s/v1/responses", c.baseURL)
+	case ProtocolClaude:
+		endpoint = fmt.Sprintf("%s/v1/messages?beta=true", c.baseURL)
+	case ProtocolOpenAI:
+		endpoint = fmt.Sprintf("%s/v1/chat/completions", c.baseURL)
 	}
 
 	out := make(chan StreamEvent, 64)
@@ -162,13 +167,17 @@ func (c *AnyRouterClient) StreamChat(
 			var headers http.Header
 			var bodyMap map[string]interface{}
 
-			if isCodex {
+			switch protocol {
+			case ProtocolCodex:
 				h, clientMeta := c.createCodexHeaders(sessionID, turnID)
 				headers = h
 				bodyMap = c.buildCodexBody(model, messages, systemPrompt, sessionID, turnID, clientMeta, maxTokens, "medium")
-			} else {
+			case ProtocolClaude:
 				headers = c.createClaudeHeaders(sessionID, 0)
 				bodyMap = c.buildClaudeBody(model, messages, systemPrompt, sessionID, maxTokens)
+			case ProtocolOpenAI:
+				headers = c.createOpenAIHeaders(sessionID)
+				bodyMap = c.buildOpenAIBody(model, messages, systemPrompt, maxTokens)
 			}
 
 			bodyBytes, err := json.Marshal(bodyMap)
@@ -213,10 +222,13 @@ func (c *AnyRouterClient) StreamChat(
 					sseChan := make(chan StreamEvent, 32)
 					go func() {
 						defer resp.Body.Close()
-						if isCodex {
+						switch protocol {
+						case ProtocolCodex:
 							parseCodexSSE(resp.Body, sseChan)
-						} else {
+						case ProtocolClaude:
 							parseClaudeSSE(resp.Body, sseChan)
+						case ProtocolOpenAI:
+							parseOpenAISSE(resp.Body, sseChan)
 						}
 						close(sseChan)
 					}()
