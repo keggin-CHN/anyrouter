@@ -10,20 +10,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* ==========================================================================
-       Design System: Vercel / Linear / Raycast Dark Dashboard Aesthetics
+       Design System: Vercel / Linear / Raycast Obsidian Dark Aesthetics
        ========================================================================== */
     :root {
-      --bg-canvas: #090a0f;
-      --bg-panel: #0e1017;
-      --bg-card: rgba(18, 21, 31, 0.75);
-      --bg-card-hover: rgba(26, 30, 46, 0.85);
-      --bg-card-solid: #131622;
-      --bg-input: #0a0b12;
-      --bg-header: rgba(12, 14, 22, 0.88);
+      --bg-canvas: #07090e;
+      --bg-panel: #0c0e17;
+      --bg-card: rgba(15, 18, 28, 0.78);
+      --bg-card-hover: rgba(24, 29, 46, 0.88);
+      --bg-card-solid: #111422;
+      --bg-input: #080a12;
+      --bg-header: rgba(10, 12, 20, 0.92);
+      --bg-drawer: rgba(13, 16, 26, 0.96);
 
-      --border-subtle: rgba(255, 255, 255, 0.07);
-      --border-medium: rgba(255, 255, 255, 0.12);
-      --border-hover: rgba(129, 140, 248, 0.35);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.14);
+      --border-hover: rgba(129, 140, 248, 0.45);
       --border-focus: #6366f1;
 
       --text-main: #f8fafc;
@@ -34,24 +35,27 @@
       --indigo: #6366f1;
       --indigo-hover: #4f46e5;
       --indigo-light: #818cf8;
-      --indigo-glow: rgba(99, 102, 241, 0.3);
+      --indigo-glow: rgba(99, 102, 241, 0.35);
 
       --emerald: #10b981;
-      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --emerald-glow: rgba(16, 185, 129, 0.28);
       --amber: #f59e0b;
-      --amber-glow: rgba(245, 158, 11, 0.25);
+      --amber-glow: rgba(245, 158, 11, 0.28);
       --rose: #f43f5e;
-      --rose-glow: rgba(244, 63, 94, 0.25);
+      --rose-glow: rgba(244, 63, 94, 0.3);
       --cyan: #06b6d4;
 
-      --radius-xs: 4px;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --radius-xl: 18px;
+      --radius-xs: 5px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
 
-      --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-      --shadow-btn: 0 2px 10px rgba(99, 102, 241, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+      --shadow-card: 0 8px 28px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+      --shadow-btn: 0 4px 14px rgba(99, 102, 241, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+      --shadow-btn-danger: 0 4px 14px rgba(225, 29, 72, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+      --shadow-drawer: -16px 0 48px rgba(0, 0, 0, 0.75), -1px 0 0 rgba(255, 255, 255, 0.1);
+      --shadow-popover: 0 16px 40px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.12);
     }
 
     * {
@@ -66,9 +70,9 @@
     body {
       background-color: var(--bg-canvas);
       background-image: 
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
-        radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.05), transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05), transparent 40%);
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.18), transparent),
+        radial-gradient(circle at 10% 25%, rgba(14, 165, 233, 0.06), transparent 45%),
+        radial-gradient(circle at 90% 85%, rgba(139, 92, 246, 0.06), transparent 45%);
       color: var(--text-main);
       height: 100vh;
       display: flex;
@@ -80,17 +84,17 @@
     /* Scrollbars */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.4); }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.22); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.45); }
 
     /* ==========================================================================
-       1. Header Bar (Frosted Navigation & Status)
+       1. Header Bar (Frosted Navigation, Status & Drawer Trigger)
        ========================================================================== */
     header {
       background: var(--bg-header);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      height: 48px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      height: 50px;
       border-bottom: 1px solid var(--border-subtle);
       padding: 0 16px;
       display: flex;
@@ -103,24 +107,24 @@
     .brand-section {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .brand-logo-wrap {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: var(--radius-sm);
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
       flex-shrink: 0;
     }
 
     .brand-logo-wrap svg {
-      width: 16px;
-      height: 16px;
+      width: 17px;
+      height: 17px;
       fill: #ffffff;
     }
 
@@ -137,11 +141,11 @@
     .brand-badge-version {
       font-size: 10px;
       font-weight: 700;
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 4px;
-      background: rgba(99, 102, 241, 0.15);
+      background: rgba(99, 102, 241, 0.16);
       color: #a5b4fc;
-      border: 1px solid rgba(99, 102, 241, 0.3);
+      border: 1px solid rgba(99, 102, 241, 0.32);
       letter-spacing: 0.2px;
     }
 
@@ -151,28 +155,60 @@
       gap: 10px;
     }
 
+    /* Buttons: Universal Modern Tactile System */
+    .btn-action-base {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 600;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      position: relative;
+    }
+    .btn-action-base:active {
+      transform: scale(0.97) translateY(0) !important;
+    }
+
+    .btn-header-drawer {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%);
+      color: #c7d2fe;
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
+      padding: 5px 12px;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    }
+    .btn-header-drawer:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(139, 92, 246, 0.3) 100%);
+      border-color: rgba(165, 180, 252, 0.6);
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+    .btn-header-drawer svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+    }
+
     .btn-tray-dock {
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
       color: #cbd5e1;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       font-size: 11px;
-      font-weight: 600;
-      padding: 4px 9px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 5px 10px;
     }
-
     .btn-tray-dock:hover {
       background: rgba(99, 102, 241, 0.2);
       border-color: rgba(129, 140, 248, 0.4);
       color: #ffffff;
       transform: translateY(-1px);
     }
-
     .btn-tray-dock svg {
       width: 13px;
       height: 13px;
@@ -182,7 +218,7 @@
     .header-hint {
       font-size: 11px;
       color: var(--text-subtle);
-      margin-right: 4px;
+      margin-right: 2px;
     }
 
     .proxy-status-pill {
@@ -192,7 +228,7 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(15, 18, 30, 0.8);
+      background: rgba(15, 18, 30, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.08);
       padding: 4px 10px;
       border-radius: 20px;
@@ -207,7 +243,6 @@
       box-shadow: 0 0 8px currentColor;
       position: relative;
     }
-
     .proxy-indicator-dot::after {
       content: '';
       position: absolute;
@@ -242,8 +277,8 @@
        ========================================================================== */
     .vault-card {
       background: var(--bg-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 10px 14px;
@@ -251,7 +286,6 @@
       flex-shrink: 0;
       transition: border-color 0.2s ease;
     }
-
     .vault-card:hover {
       border-color: rgba(255, 255, 255, 0.14);
     }
@@ -272,7 +306,6 @@
       gap: 6px;
       letter-spacing: -0.1px;
     }
-
     .vault-label svg {
       width: 14px;
       height: 14px;
@@ -301,7 +334,6 @@
       user-select: text;
       transition: all 0.2s ease;
     }
-
     .keys-input-area:focus {
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -322,7 +354,7 @@
       color: #34d399;
       text-align: center;
       padding: 3px 6px;
-      background: rgba(16, 185, 129, 0.1);
+      background: rgba(16, 185, 129, 0.12);
       border-radius: var(--radius-sm);
       border: 1px solid rgba(16, 185, 129, 0.25);
     }
@@ -334,22 +366,13 @@
       border-radius: var(--radius-sm);
       padding: 5px 8px;
       font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      transition: all 0.15s ease;
     }
-
     .btn-vault-action:hover {
       background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.2);
       color: #ffffff;
       transform: translateY(-1px);
     }
-
     .btn-vault-action svg {
       width: 13px;
       height: 13px;
@@ -357,14 +380,14 @@
     }
 
     .btn-vault-action-primary {
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.85) 0%, rgba(99, 102, 241, 0.85) 100%);
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.9) 0%, rgba(99, 102, 241, 0.9) 100%);
       border-color: rgba(129, 140, 248, 0.4);
       color: #ffffff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
     }
-
     .btn-vault-action-primary:hover {
       background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
     }
 
     /* ==========================================================================
@@ -376,8 +399,8 @@
       flex-direction: column;
       min-height: 0;
       background: var(--bg-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       overflow: hidden;
@@ -386,7 +409,7 @@
 
     .tabs-nav-bar {
       display: flex;
-      background: rgba(12, 14, 23, 0.95);
+      background: rgba(12, 14, 23, 0.96);
       border-bottom: 1px solid var(--border-subtle);
       padding: 5px 8px 0;
       gap: 4px;
@@ -408,21 +431,18 @@
       gap: 7px;
       transition: all 0.18s ease;
     }
-
     .tab-nav-btn svg {
       width: 14px;
       height: 14px;
       stroke: currentColor;
     }
-
     .tab-nav-btn:hover {
       color: #ffffff;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.04);
     }
-
     .tab-nav-btn.active {
       color: #ffffff;
-      background: linear-gradient(180deg, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0.05) 100%);
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.24) 0%, rgba(99, 102, 241, 0.06) 100%);
       border-bottom-color: var(--indigo-light);
       font-weight: 700;
     }
@@ -452,14 +472,13 @@
       overflow: hidden;
       min-height: 0;
     }
-
     .tab-pane.active {
       display: flex;
     }
 
     .sub-toolbar {
-      height: 34px;
-      background: rgba(14, 17, 28, 0.6);
+      height: 36px;
+      background: rgba(15, 18, 30, 0.7);
       border-bottom: 1px solid var(--border-subtle);
       padding: 0 14px;
       display: flex;
@@ -469,13 +488,34 @@
       flex-shrink: 0;
     }
 
-    /* Tab 1: Monitor Grid */
+    .chip-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: #cbd5e1;
+      border-radius: var(--radius-xs);
+      padding: 3px 9px;
+      font-size: 11px;
+    }
+    .chip-btn:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(129, 140, 248, 0.4);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    /* Tab 1: Monitor Matrix Grid */
     .monitor-stream-grid {
       flex: 1;
       overflow-y: auto;
-      padding: 12px 14px;
+      padding: 12px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
       gap: 12px;
       align-content: start;
     }
@@ -488,14 +528,12 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+      box-shadow: var(--shadow-card);
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
     }
-
     .channel-pod:hover {
-      border-color: var(--border-hover);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      border-color: rgba(129, 140, 248, 0.35);
+      background: var(--bg-card-hover);
       transform: translateY(-2px);
     }
 
@@ -512,94 +550,78 @@
     }
 
     .pod-key-badge {
-      font-family: 'JetBrains Mono', Consolas, monospace;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      color: #93c5fd;
-      background: rgba(30, 58, 138, 0.35);
-      border: 1px solid rgba(96, 165, 250, 0.25);
-      padding: 2px 7px;
-      border-radius: var(--radius-xs);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .pod-model-badge {
-      font-size: 11px;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 11.5px;
       font-weight: 700;
-      color: #d8b4fe;
-      background: rgba(88, 28, 135, 0.35);
-      border: 1px solid rgba(192, 132, 252, 0.25);
-      padding: 2px 7px;
-      border-radius: var(--radius-xs);
+      color: #c7d2fe;
     }
 
     .status-pill-avail {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      color: #34d399;
-      background: rgba(6, 78, 59, 0.45);
-      border: 1px solid rgba(52, 211, 153, 0.35);
       padding: 2px 8px;
       border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
     .status-pill-squeezing {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      color: #fbbf24;
-      background: rgba(120, 53, 15, 0.4);
-      border: 1px solid rgba(251, 191, 36, 0.3);
       padding: 2px 8px;
       border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
     .status-pill-stopped {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-subtle);
-      background: rgba(30, 41, 59, 0.4);
-      border: 1px solid rgba(148, 163, 184, 0.15);
+      font-size: 10px;
+      font-weight: 700;
       padding: 2px 8px;
       border-radius: 12px;
+      background: rgba(148, 163, 184, 0.12);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
     }
 
     .channel-headline {
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       line-height: 1.4;
     }
 
     .channel-log-inset {
-      background: #080910;
+      background: rgba(6, 8, 14, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: var(--radius-sm);
       padding: 8px 10px;
       font-size: 11px;
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      user-select: text;
+      gap: 4px;
     }
 
     .inset-line {
       display: flex;
-      align-items: baseline;
-      gap: 6px;
-      color: var(--text-muted);
+      gap: 5px;
+      color: var(--text-subtle);
     }
-
     .inset-prompt {
-      font-family: 'JetBrains Mono', Consolas, monospace;
       color: #cbd5e1;
       font-weight: 500;
     }
-
     .inset-reply {
       font-family: 'JetBrains Mono', Consolas, monospace;
       color: #6ee7b7;
@@ -627,10 +649,9 @@
       align-items: flex-start;
       gap: 12px;
       cursor: pointer;
-      transition: all 0.18s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: var(--shadow-card);
     }
-
     .model-card-box:hover {
       border-color: rgba(129, 140, 248, 0.4);
       background: rgba(24, 28, 44, 0.95);
@@ -671,19 +692,16 @@
       padding: 2px 7px;
       border-radius: 4px;
     }
-
     .proto-codex {
       background: rgba(88, 28, 135, 0.4);
       color: #d8b4fe;
       border: 1px solid rgba(192, 132, 252, 0.3);
     }
-
     .proto-claude {
       background: rgba(15, 118, 110, 0.4);
       color: #5eead4;
       border: 1px solid rgba(45, 212, 191, 0.3);
     }
-
     .proto-openai {
       background: rgba(30, 64, 175, 0.4);
       color: #93c5fd;
@@ -742,7 +760,6 @@
       user-select: text;
       transition: all 0.2s ease;
     }
-
     .prompts-editor-area:focus {
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
@@ -766,8 +783,8 @@
       color: var(--text-muted);
     }
 
-    .form-control-input, .form-control-select {
-      height: 32px;
+    .form-control-input {
+      height: 36px;
       background: var(--bg-input);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
@@ -779,25 +796,171 @@
       transition: all 0.2s ease;
       user-select: text;
     }
-
-    .form-control-input:focus, .form-control-select:focus {
+    .form-control-input:focus {
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
     }
 
-    .form-control-select option {
-      background: #111322;
+    /* ==========================================================================
+       Custom Beautified Dropdown Menus (全新玻璃质感下拉组件)
+       ========================================================================== */
+    .custom-select-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .custom-select-trigger {
+      width: 100%;
+      height: 36px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
       color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+    .custom-select-trigger:hover {
+      border-color: rgba(129, 140, 248, 0.45);
+      background: rgba(15, 18, 30, 0.95);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+    }
+    .custom-select-trigger.open {
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .trigger-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .trigger-icon {
+      font-size: 14px;
+    }
+
+    .select-chevron {
+      width: 14px;
+      height: 14px;
+      stroke: #94a3b8;
+      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
+    }
+    .custom-select-trigger.open .select-chevron {
+      transform: rotate(180deg);
+      stroke: var(--indigo-light);
+    }
+
+    .custom-select-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: rgba(13, 16, 27, 0.97);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--radius-md);
+      padding: 6px;
+      box-shadow: var(--shadow-popover);
+      z-index: 120;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .custom-select-popover.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .custom-select-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: #e2e8f0;
+      font-size: 12px;
+      transition: all 0.15s ease;
+      gap: 8px;
+    }
+    .custom-select-option:hover {
+      background: rgba(99, 102, 241, 0.18);
+      color: #ffffff;
+      transform: translateX(2px);
+    }
+    .custom-select-option.selected {
+      background: rgba(99, 102, 241, 0.28);
+      color: #ffffff;
+      font-weight: 700;
+      border: 1px solid rgba(129, 140, 248, 0.35);
+    }
+
+    .option-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .option-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .option-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+    .option-title {
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .option-desc {
+      font-size: 10.5px;
+      color: var(--text-subtle);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .custom-select-option.selected .option-desc {
+      color: #cbd5e1;
+    }
+
+    .option-check-icon {
+      width: 14px;
+      height: 14px;
+      stroke: #34d399;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    .custom-select-option.selected .option-check-icon {
+      opacity: 1;
     }
 
     /* ==========================================================================
        4. Action Bar (Bottom Docked Controls)
        ========================================================================== */
     .action-dock-bar {
-      height: 46px;
+      height: 48px;
       background: var(--bg-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 0 14px;
@@ -817,29 +980,18 @@
     .btn-dock-start {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       border-radius: var(--radius-sm);
-      padding: 6px 18px;
+      padding: 7px 20px;
       font-size: 12.5px;
       font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
       box-shadow: var(--shadow-btn);
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       letter-spacing: -0.1px;
     }
-
     .btn-dock-start:hover {
-      box-shadow: 0 4px 18px rgba(124, 58, 237, 0.55);
-      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(124, 58, 237, 0.6);
+      transform: translateY(-1.5px);
     }
-
-    .btn-dock-start:active {
-      transform: translateY(0);
-    }
-
     .btn-dock-start svg {
       width: 14px;
       height: 14px;
@@ -851,31 +1003,24 @@
       color: #fda4af;
       border: 1px solid rgba(244, 63, 94, 0.3);
       border-radius: var(--radius-sm);
-      padding: 6px 16px;
+      padding: 7px 18px;
       font-size: 12px;
       font-weight: 700;
       cursor: not-allowed;
       opacity: 0.5;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
     }
-
     .btn-dock-stop.enabled {
       background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       color: #ffffff;
       cursor: pointer;
       opacity: 1;
-      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+      box-shadow: var(--shadow-btn-danger);
     }
-
     .btn-dock-stop.enabled:hover {
-      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.55);
-      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(225, 29, 72, 0.6);
+      transform: translateY(-1.5px);
     }
-
     .btn-dock-stop svg {
       width: 13px;
       height: 13px;
@@ -900,23 +1045,15 @@
       color: #cbd5e1;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 6px 12px;
+      padding: 6px 14px;
       font-size: 11.5px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 0.15s ease;
     }
-
     .btn-dock-sec:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.22);
       color: #ffffff;
       transform: translateY(-1px);
     }
-
     .btn-dock-sec svg {
       width: 13px;
       height: 13px;
@@ -929,8 +1066,8 @@
     .telemetry-card {
       height: 165px;
       background: var(--bg-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 8px 12px;
@@ -969,7 +1106,7 @@
     .telemetry-scroller {
       flex: 1;
       background: #06070c;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       border-radius: var(--radius-sm);
       overflow-y: auto;
       padding: 7px 12px;
@@ -983,18 +1120,415 @@
       margin-bottom: 3px;
       word-break: break-all;
     }
-
     .log-stamp {
       color: var(--text-subtle);
       margin-right: 7px;
     }
-
     .log-tag-info { color: #818cf8; }
     .log-tag-queue { color: #facc15; }
     .log-tag-success { color: #34d399; font-weight: 700; }
     .log-tag-warn { color: #fb923c; }
     .log-tag-error { color: #f87171; font-weight: 700; }
     .log-tag-heartbeat { color: #38bdf8; }
+
+    /* ==========================================================================
+       6. Slide-out Drawer Panel (抽屉式快捷侧边菜单)
+       ========================================================================== */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 5, 10, 0.68);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .drawer-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .side-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 420px;
+      max-width: 92vw;
+      height: 100vh;
+      background: var(--bg-drawer);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-left: 1px solid var(--border-medium);
+      box-shadow: var(--shadow-drawer);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .side-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      height: 52px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      background: rgba(10, 12, 22, 0.75);
+    }
+
+    .drawer-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .drawer-icon-wrap {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25));
+      border: 1px solid rgba(129, 140, 248, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a5b4fc;
+    }
+    .drawer-icon-wrap svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .drawer-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.1px;
+    }
+    .drawer-subtitle {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      letter-spacing: 0.5px;
+    }
+
+    .drawer-close-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-xs);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .drawer-close-btn:hover {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+    .drawer-close-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .drawer-card {
+      background: rgba(18, 22, 36, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .drawer-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .drawer-card-title .icon {
+      font-size: 14px;
+    }
+
+    .preset-pill-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      color: #e2e8f0;
+    }
+    .preset-btn:hover {
+      background: rgba(99, 102, 241, 0.16);
+      border-color: rgba(129, 140, 248, 0.35);
+      transform: translateX(2px);
+    }
+    .preset-btn.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.2) 100%);
+      border-color: var(--indigo-light);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+    }
+    .preset-name {
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .preset-detail {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    .drawer-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .drawer-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .drawer-input-with-action {
+      display: flex;
+      gap: 6px;
+    }
+
+    .drawer-input {
+      flex: 1;
+      height: 36px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: #f8fafc;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 12px;
+      padding: 0 10px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .drawer-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-input-sub {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .btn-input-sub:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(129, 140, 248, 0.4);
+      color: #ffffff;
+    }
+
+    .btn-drawer-action {
+      width: 100%;
+      height: 38px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: var(--radius-sm);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: var(--shadow-btn);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-drawer-action:hover {
+      box-shadow: 0 4px 18px rgba(124, 58, 237, 0.55);
+      transform: translateY(-1px);
+    }
+    .btn-drawer-action svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .drawer-result-box {
+      background: #060810;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .drawer-result-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .result-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .result-badge-ok {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .result-badge-fail {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fda4af;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+    .result-time {
+      font-size: 10.5px;
+      color: var(--text-subtle);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .drawer-result-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #e2e8f0;
+      line-height: 1.45;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .stats-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .stat-mini-box {
+      background: rgba(10, 13, 22, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2px;
+    }
+    .stat-mini-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--indigo-light);
+    }
+    .stat-mini-label {
+      font-size: 9.5px;
+      color: var(--text-subtle);
+    }
+
+    .btn-drawer-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: #cbd5e1;
+      height: 36px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-drawer-ghost:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(129, 140, 248, 0.4);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .btn-drawer-ghost svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .drawer-footer {
+      height: 54px;
+      padding: 0 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+      background: rgba(10, 12, 22, 0.85);
+    }
+    .btn-drawer-foot-sec {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: #e2e8f0;
+      padding: 7px 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-drawer-foot-sec:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+    .btn-drawer-foot-pri {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius-sm);
+      color: #ffffff;
+      padding: 7px 18px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-drawer-foot-pri:hover {
+      box-shadow: 0 0 14px rgba(99, 102, 241, 0.5);
+    }
   </style>
 </head>
 <body>
@@ -1011,7 +1545,13 @@
         <span>AnyRouter 保活矩阵</span>
         <span class="brand-badge-version">v2.6 Go 原生版</span>
       </div>
-      <button class="btn-tray-dock" onclick="hideToTray()" title="最小化隐藏到系统右下角托盘">
+      <button class="btn-action-base btn-header-drawer" onclick="toggleDrawer(true)" title="打开快捷控制抽屉面板">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
+        </svg>
+        快捷抽屉面板
+      </button>
+      <button class="btn-action-base btn-tray-dock" onclick="hideToTray()" title="最小化隐藏到系统右下角托盘">
         <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
         </svg>
@@ -1045,13 +1585,13 @@
         <textarea id="keys-input" class="keys-input-area" placeholder="在此填入 API Keys，每行一个 key&#10;sk-xxxx...&#10;sk-yyyy..." oninput="onKeysChanged()"></textarea>
         <div class="vault-tools-col">
           <div id="key-count-lbl" class="key-count-tag">已识别 0 个 Key</div>
-          <button class="btn-vault-action" onclick="pasteFromClipboard()">
+          <button class="btn-action-base btn-vault-action" onclick="pasteFromClipboard()">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
             粘贴剪贴板
           </button>
-          <button class="btn-vault-action btn-vault-action-primary" onclick="refreshModelList()">
+          <button class="btn-action-base btn-vault-action btn-vault-action-primary" onclick="refreshModelList()">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
@@ -1098,43 +1638,50 @@
         <!-- Tab 2: Model Selection -->
         <div id="page-models" class="tab-pane">
           <div class="sub-toolbar">
-            <div class="dock-left-actions">
-              <button class="btn-vault-action" onclick="selectAllModels()">全选</button>
-              <button class="btn-vault-action" onclick="deselectAllModels()">全不选</button>
-              <button class="btn-vault-action" onclick="resetDefaultModels()">恢复推荐</button>
+            <span id="models-header-count" style="color:#94a3b8;font-weight:600;">加载模型中...</span>
+            <div class="chip-btn-group">
+              <button class="btn-action-base chip-btn" onclick="selectAllModels()">全选模型</button>
+              <button class="btn-action-base chip-btn" onclick="deselectAllModels()">清空全不选</button>
+              <button class="btn-action-base chip-btn" onclick="resetDefaultModels()">恢复4大推荐模型</button>
             </div>
-            <span id="models-header-count" style="color:#94a3b8;font-weight:600;">共加载 0 个模型 (已勾选 0 个)</span>
           </div>
           <div id="model-list-grid" class="model-cards-grid"></div>
         </div>
 
         <!-- Tab 3: Settings -->
         <div id="page-settings" class="tab-pane">
+          <div class="sub-toolbar">
+            <span style="color:#94a3b8;font-weight:600;">两阶段挂机策略与测活题库配置</span>
+            <div class="chip-btn-group">
+              <button class="btn-action-base chip-btn" onclick="restoreDefaultPrompts()">恢复默认10大题库</button>
+              <button class="btn-action-base chip-btn" onclick="saveAllConfig()">保存生效</button>
+            </div>
+          </div>
           <div class="settings-view-scroll">
-            <!-- 题库设置 -->
+            <!-- 题库配置 -->
             <div class="settings-section-card">
               <div class="settings-card-title">
-                <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;">
-                  <input type="checkbox" id="cfg-random-prompt" style="accent-color:#34d399;width:16px;height:16px;" checked>
-                  <span style="color:#34d399;font-weight:600;">🎲 启用随机测活问题轮换 (防止平台缓存与固定特征识别)</span>
+                <span>测活巡航随机题库池 (每行一条，测活时随机抽取，杜绝命中僵死缓存)：</span>
+                <label style="font-size:11px;color:#94a3b8;display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+                  <input type="checkbox" id="cfg-random-prompt" checked> 启用随机抽取题库
                 </label>
-                <button class="btn-vault-action" onclick="restoreDefaultPrompts()">↺ 恢复 10 大经典预设题库</button>
               </div>
-              <textarea id="cfg-prompts-input" class="prompts-editor-area" placeholder="每行一道题..."></textarea>
+              <textarea id="cfg-prompts-input" class="prompts-editor-area" placeholder="1+1&#10;用一个字回答：好&#10;输出一个数字: 8..."></textarea>
             </div>
 
             <!-- 参数设置 -->
             <div class="settings-section-card">
               <div class="settings-card-title">
-                <span>⚙ 保活与排队核心参数设置</span>
+                <span>两阶段挂机节奏与网络参数：</span>
+                <span style="font-size:11px;color:#64748b;">修改后点击下方保存配置立即生效</span>
               </div>
               <div class="params-responsive-grid">
                 <div class="form-item">
-                  <label class="form-label">每轮尝试次数：</label>
+                  <label class="form-label">每轮排队尝试次数：</label>
                   <input id="cfg-tries" class="form-control-input" type="number" min="1" max="20" value="5">
                 </div>
                 <div class="form-item">
-                  <label class="form-label">轮内单次间隔 (秒)：</label>
+                  <label class="form-label">同轮内尝试间隔 (秒)：</label>
                   <input id="cfg-intra-delay" class="form-control-input" type="number" min="1" max="60" value="5">
                 </div>
                 <div class="form-item">
@@ -1154,11 +1701,42 @@
                   <input id="cfg-proxy" class="form-control-input" type="text" value="http://127.0.0.1:10808">
                 </div>
                 <div class="form-item">
-                  <label class="form-label">点击关闭行为：</label>
-                  <select id="cfg-close-behavior" class="form-control-select">
-                    <option value="silent">进入后台静默运行 (默认)</option>
-                    <option value="exit">彻底退出程序</option>
-                  </select>
+                  <label class="form-label">点击关闭主窗口行为：</label>
+                  <!-- Custom Beautified Select for Close Behavior -->
+                  <div class="custom-select-wrapper" id="custom-select-close">
+                    <button type="button" class="custom-select-trigger" onclick="toggleCustomSelect('custom-select-close')">
+                      <span class="trigger-content">
+                        <span class="trigger-icon" id="custom-select-close-icon">🛡️</span>
+                        <span id="custom-select-close-text">进入后台静默运行 (默认推荐)</span>
+                      </span>
+                      <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+                    <div class="custom-select-popover" id="custom-select-close-menu">
+                      <div class="custom-select-option selected" data-value="silent" onclick="selectCustomOption('custom-select-close', 'silent', '进入后台静默运行 (默认推荐)', '🛡️')">
+                        <div class="option-left">
+                          <span class="option-icon">🛡️</span>
+                          <div class="option-meta">
+                            <div class="option-title">进入后台静默运行</div>
+                            <div class="option-desc">隐藏到系统托盘继续并发保活，不打扰工作</div>
+                          </div>
+                        </div>
+                        <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      </div>
+                      <div class="custom-select-option" data-value="exit" onclick="selectCustomOption('custom-select-close', 'exit', '彻底退出程序', '🚪')">
+                        <div class="option-left">
+                          <span class="option-icon">🚪</span>
+                          <div class="option-meta">
+                            <div class="option-title">彻底退出程序</div>
+                            <div class="option-desc">关闭窗口时终止所有保活任务并退出</div>
+                          </div>
+                        </div>
+                        <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      </div>
+                    </div>
+                    <input type="hidden" id="cfg-close-behavior" value="silent">
+                  </div>
                 </div>
               </div>
             </div>
@@ -1171,13 +1749,13 @@
     <!-- 4. Action Dock Bar -->
     <div class="action-dock-bar">
       <div class="dock-left-actions">
-        <button id="btn-start" class="btn-dock-start" onclick="startKeepalive()">
+        <button id="btn-start" class="btn-action-base btn-dock-start" onclick="startKeepalive()">
           <svg viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
           开始并发挂机保活
         </button>
-        <button id="btn-stop" class="btn-dock-stop" onclick="stopKeepalive()">
+        <button id="btn-stop" class="btn-action-base btn-dock-stop" onclick="stopKeepalive()">
           <svg viewBox="0 0 24 24">
             <path d="M6 6h12v12H6z"/>
           </svg>
@@ -1186,13 +1764,13 @@
         <span id="matrix-summary-text" class="dock-status-summary"></span>
       </div>
       <div class="dock-right-actions">
-        <button class="btn-dock-sec" onclick="saveAllConfig()">
+        <button class="btn-action-base btn-dock-sec" onclick="saveAllConfig()">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
           </svg>
           保存配置
         </button>
-        <button class="btn-dock-sec" onclick="clearLiveLogs()">
+        <button class="btn-action-base btn-dock-sec" onclick="clearLiveLogs()">
           <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
           </svg>
@@ -1219,6 +1797,181 @@
 
   </div>
 
+  <!-- 6. Slide-out Drawer Panel (抽屉式快捷侧边菜单) -->
+  <div id="drawer-backdrop" class="drawer-backdrop" onclick="toggleDrawer(false)"></div>
+
+  <aside id="side-drawer" class="side-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <div class="drawer-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="drawer-title">快捷控制抽屉</div>
+          <div class="drawer-subtitle">QUICK ACTIONS & PLAYGROUND</div>
+        </div>
+      </div>
+      <button class="drawer-close-btn" onclick="toggleDrawer(false)" title="关闭抽屉 (Esc)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Section 1: 策略预设一键切换 -->
+      <div class="drawer-card">
+        <div class="drawer-card-title">
+          <span class="icon">⚡</span> 运行节奏快速预设
+        </div>
+        <div class="preset-pill-grid">
+          <button class="preset-btn" id="preset-aggressive" onclick="applyPreset('aggressive')">
+            <span class="preset-name">🔥 极速挤入</span>
+            <span class="preset-detail">5次/轮 · 间隔3s · 冷却20s</span>
+          </button>
+          <button class="preset-btn active" id="preset-balanced" onclick="applyPreset('balanced')">
+            <span class="preset-name">⚖️ 均衡保活 (推荐)</span>
+            <span class="preset-detail">5次/轮 · 间隔5s · 冷却30s</span>
+          </button>
+          <button class="preset-btn" id="preset-gentle" onclick="applyPreset('gentle')">
+            <span class="preset-name">🍃 温和巡航</span>
+            <span class="preset-detail">3次/轮 · 间隔10s · 冷却60s</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section 2: 单模型即时测活 Ping 工具 (Live Playground) -->
+      <div class="drawer-card">
+        <div class="drawer-card-title">
+          <span class="icon">🎯</span> 单模型即时测活 Ping 工具
+        </div>
+        <div class="drawer-form-group">
+          <label class="drawer-label">选择测活目标模型：</label>
+          <!-- Custom Beautified Select for Drawer Model -->
+          <div class="custom-select-wrapper" id="custom-select-drawer-model">
+            <button type="button" class="custom-select-trigger" onclick="toggleCustomSelect('custom-select-drawer-model')">
+              <span class="trigger-content">
+                <span class="trigger-icon" id="custom-select-drawer-model-icon">🔮</span>
+                <span id="custom-select-drawer-model-text">gpt-6-astra (Codex)</span>
+              </span>
+              <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div class="custom-select-popover" id="custom-select-drawer-model-menu">
+              <div class="custom-select-option selected" data-value="gpt-6-astra" onclick="selectCustomOption('custom-select-drawer-model', 'gpt-6-astra', 'gpt-6-astra (Codex)', '🔮')">
+                <div class="option-left">
+                  <span class="option-icon">🔮</span>
+                  <div class="option-meta">
+                    <div class="option-title">gpt-6-astra</div>
+                    <div class="option-desc">OpenAI Responses API 深度伪装</div>
+                  </div>
+                </div>
+                <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div class="custom-select-option" data-value="claude-opus-4-8" onclick="selectCustomOption('custom-select-drawer-model', 'claude-opus-4-8', 'claude-opus-4-8 (Claude Code)', '👑')">
+                <div class="option-left">
+                  <span class="option-icon">👑</span>
+                  <div class="option-meta">
+                    <div class="option-title">claude-opus-4-8</div>
+                    <div class="option-desc">Anthropic 旗舰 Opus 伪装</div>
+                  </div>
+                </div>
+                <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div class="custom-select-option" data-value="claude-fable-5-1" onclick="selectCustomOption('custom-select-drawer-model', 'claude-fable-5-1', 'claude-fable-5-1 (Claude Code)', '⚡')">
+                <div class="option-left">
+                  <span class="option-icon">⚡</span>
+                  <div class="option-meta">
+                    <div class="option-title">claude-fable-5-1</div>
+                    <div class="option-desc">Anthropic 极速 Fable 伪装</div>
+                  </div>
+                </div>
+                <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div class="custom-select-option" data-value="gemini-2.5-pro" onclick="selectCustomOption('custom-select-drawer-model', 'gemini-2.5-pro', 'gemini-2.5-pro (OpenAI 标准)', '💎')">
+                <div class="option-left">
+                  <span class="option-icon">💎</span>
+                  <div class="option-meta">
+                    <div class="option-title">gemini-2.5-pro</div>
+                    <div class="option-desc">Google Gemini 2.5 Pro OpenAI 兼容端点</div>
+                  </div>
+                </div>
+                <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+            </div>
+            <input type="hidden" id="drawer-ping-model-val" value="gpt-6-astra">
+          </div>
+        </div>
+        <div class="drawer-form-group">
+          <label class="drawer-label">测活提问内容：</label>
+          <div class="drawer-input-with-action">
+            <input id="drawer-ping-prompt" class="drawer-input" type="text" value="1+1" placeholder="输入测试提问...">
+            <button class="btn-input-sub" onclick="randomizeDrawerPrompt()" title="随机抽取题库">🎲 随机</button>
+          </div>
+        </div>
+        <button id="btn-drawer-ping" class="btn-action-base btn-drawer-action" onclick="runDrawerPing()">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+          <span id="btn-drawer-ping-text">发送即时探测 Ping</span>
+        </button>
+        <div id="drawer-ping-result" class="drawer-result-box" style="display:none;">
+          <div class="drawer-result-head">
+            <span id="drawer-result-badge" class="result-badge result-badge-ok">探测成功</span>
+            <span id="drawer-result-time" class="result-time">耗时: 0ms</span>
+          </div>
+          <div id="drawer-result-content" class="drawer-result-text"></div>
+        </div>
+      </div>
+
+      <!-- Section 3: 实时运行状态与诊断 -->
+      <div class="drawer-card">
+        <div class="drawer-card-title">
+          <span class="icon">📈</span> 系统通道健康度与指标
+        </div>
+        <div class="stats-mini-grid">
+          <div class="stat-mini-box">
+            <div class="stat-mini-val" id="drawer-stat-channels">0</div>
+            <div class="stat-mini-label">活跃并发通道</div>
+          </div>
+          <div class="stat-mini-box">
+            <div class="stat-mini-val" id="drawer-stat-checks" style="color:#10b981;">0</div>
+            <div class="stat-mini-label">累计保活次数</div>
+          </div>
+          <div class="stat-mini-box">
+            <div class="stat-mini-val" id="drawer-stat-proxy" style="color:#f59e0b;">检测中</div>
+            <div class="stat-mini-label">本地代理状态</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: 窗口与托盘快捷操作 -->
+      <div class="drawer-card">
+        <div class="drawer-card-title">
+          <span class="icon">🪟</span> 窗口与系统托盘
+        </div>
+        <button class="btn-action-base btn-drawer-ghost" onclick="hideToTray()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+          立即最小化隐藏至系统托盘
+        </button>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button class="btn-action-base btn-drawer-foot-sec" onclick="saveAllConfig()">
+        💾 保存全部配置
+      </button>
+      <button class="btn-action-base btn-drawer-foot-pri" onclick="toggleDrawer(false)">
+        完成关闭
+      </button>
+    </div>
+  </aside>
+
   <script>
     let isRunning = false;
     let configData = null;
@@ -1237,6 +1990,186 @@
       "从1数到3"
     ];
 
+    /* ==========================================================================
+       Custom Beautified Dropdown Controller
+       ========================================================================== */
+    function toggleCustomSelect(wrapperId) {
+      const wrapper = document.getElementById(wrapperId);
+      if (!wrapper) return;
+      const trigger = wrapper.querySelector('.custom-select-trigger');
+      const popover = wrapper.querySelector('.custom-select-popover');
+      const isOpen = trigger.classList.contains('open');
+
+      // Close all other open dropdowns first
+      closeAllCustomSelects();
+
+      if (!isOpen) {
+        trigger.classList.add('open');
+        popover.classList.add('open');
+      }
+    }
+
+    function closeAllCustomSelects() {
+      document.querySelectorAll('.custom-select-trigger').forEach(t => t.classList.remove('open'));
+      document.querySelectorAll('.custom-select-popover').forEach(p => p.classList.remove('open'));
+    }
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-select-wrapper')) {
+        closeAllCustomSelects();
+      }
+    });
+
+    function selectCustomOption(wrapperId, value, text, icon) {
+      const wrapper = document.getElementById(wrapperId);
+      if (!wrapper) return;
+
+      // Update hidden input
+      const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+      if (hiddenInput) {
+        hiddenInput.value = value;
+      }
+
+      // Update trigger display
+      const textSpan = wrapper.querySelector('#' + wrapperId + '-text') || wrapper.querySelector('.trigger-content span:last-child');
+      const iconSpan = wrapper.querySelector('#' + wrapperId + '-icon') || wrapper.querySelector('.trigger-icon');
+      if (textSpan) textSpan.innerText = text;
+      if (iconSpan) iconSpan.innerText = icon;
+
+      // Update selected class in popover
+      wrapper.querySelectorAll('.custom-select-option').forEach(opt => {
+        if (opt.getAttribute('data-value') === value) {
+          opt.classList.add('selected');
+        } else {
+          opt.classList.remove('selected');
+        }
+      });
+
+      closeAllCustomSelects();
+    }
+
+    /* ==========================================================================
+       Drawer Controller
+       ========================================================================== */
+    function toggleDrawer(open) {
+      const drawer = document.getElementById('side-drawer');
+      const backdrop = document.getElementById('drawer-backdrop');
+      if (open) {
+        drawer.classList.add('open');
+        backdrop.classList.add('open');
+        updateDrawerStats();
+      } else {
+        drawer.classList.remove('open');
+        backdrop.classList.remove('open');
+        closeAllCustomSelects();
+      }
+    }
+
+    // Escape key closes drawer and dropdowns
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        toggleDrawer(false);
+        closeAllCustomSelects();
+      }
+    });
+
+    /* Drawer Presets */
+    function applyPreset(presetKey) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('preset-' + presetKey);
+      if (btn) btn.classList.add('active');
+
+      if (presetKey === 'aggressive') {
+        document.getElementById('cfg-tries').value = 5;
+        document.getElementById('cfg-intra-delay').value = 3;
+        document.getElementById('cfg-cooldown').value = 20;
+      } else if (presetKey === 'balanced') {
+        document.getElementById('cfg-tries').value = 5;
+        document.getElementById('cfg-intra-delay').value = 5;
+        document.getElementById('cfg-cooldown').value = 30;
+      } else if (presetKey === 'gentle') {
+        document.getElementById('cfg-tries').value = 3;
+        document.getElementById('cfg-intra-delay').value = 10;
+        document.getElementById('cfg-cooldown').value = 60;
+      }
+      saveAllConfig(false);
+    }
+
+    function randomizeDrawerPrompt() {
+      const idx = Math.floor(Math.random() * defaultPromptsList.length);
+      document.getElementById('drawer-ping-prompt').value = defaultPromptsList[idx];
+    }
+
+    async function runDrawerPing() {
+      const model = document.getElementById('drawer-ping-model-val').value;
+      const prompt = document.getElementById('drawer-ping-prompt').value.trim() || "1+1";
+      const keysText = document.getElementById('keys-input').value;
+      const keys = keysText.split('\n').map(k => k.trim()).filter(Boolean);
+      const key = keys.length > 0 ? keys[0] : "";
+
+      const btn = document.getElementById('btn-drawer-ping');
+      const btnText = document.getElementById('btn-drawer-ping-text');
+      const resBox = document.getElementById('drawer-ping-result');
+      const badge = document.getElementById('drawer-result-badge');
+      const timeLbl = document.getElementById('drawer-result-time');
+      const content = document.getElementById('drawer-result-content');
+
+      btn.style.opacity = '0.6';
+      btn.style.pointerEvents = 'none';
+      btnText.innerText = `正在探测 ${model}...`;
+      resBox.style.display = 'flex';
+      badge.className = 'result-badge';
+      badge.innerText = '探测中...';
+      timeLbl.innerText = '发送请求中...';
+      content.innerText = '正在通过本地代理连接并执行协议伪装探测...';
+
+      try {
+        const res = await fetch('/api/ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, model, prompt })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          badge.className = 'result-badge result-badge-ok';
+          badge.innerText = '探测成功！';
+          timeLbl.innerText = `耗时: ${data.time_ms}ms`;
+          let out = data.reply || '(成功建立连接，通道正常)';
+          if (data.thinking) {
+            out = `[思考推理]: ${data.thinking}\n\n[回答内容]: ${out}`;
+          }
+          content.innerText = out;
+        } else {
+          badge.className = 'result-badge result-badge-fail';
+          badge.innerText = '未挤通/报错';
+          timeLbl.innerText = `耗时: ${data.time_ms || 0}ms`;
+          content.innerText = data.error || '连接超时或通道排队中';
+        }
+      } catch (err) {
+        badge.className = 'result-badge result-badge-fail';
+        badge.innerText = '网络异常';
+        timeLbl.innerText = '0ms';
+        content.innerText = String(err);
+      } finally {
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btnText.innerText = '发送即时探测 Ping';
+      }
+    }
+
+    function updateDrawerStats() {
+      if (configData && configData.selected_models) {
+        const keysText = document.getElementById('keys-input').value;
+        const keysCount = keysText.split('\n').map(k => k.trim()).filter(Boolean).length;
+        const channels = keysCount * configData.selected_models.length;
+        document.getElementById('drawer-stat-channels').innerText = channels;
+      }
+    }
+
+    /* ==========================================================================
+       Tab Navigation
+       ========================================================================== */
     function switchTab(tabKey) {
       document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -1252,8 +2185,9 @@
     function onKeysChanged() {
       const text = document.getElementById('keys-input').value;
       const keys = text.split('\n').map(k => k.trim()).filter(Boolean);
-      const uniqueKeys = Array.from(new Set(keys));
-      document.getElementById('key-count-lbl').innerText = `已识别 ${uniqueKeys.length} 个 Key`;
+      const unique = Array.from(new Set(keys));
+      document.getElementById('key-count-lbl').innerText = `已识别 ${unique.length} 个 Key`;
+      updateDrawerStats();
     }
 
     async function pasteFromClipboard() {
@@ -1261,35 +2195,43 @@
         const text = await navigator.clipboard.readText();
         if (text) {
           const area = document.getElementById('keys-input');
-          area.value = (area.value ? area.value + '\n' : '') + text.trim();
+          area.value = (area.value ? area.value.trim() + "\n" : "") + text.trim();
           onKeysChanged();
         }
       } catch (e) {
-        alert("无法直接读取剪贴板，请手动按 Ctrl+V 粘贴。");
+        alert("请手动使用 Ctrl+V 粘贴到输入框中。");
       }
     }
 
-    async function refreshModelList() {
-      await fetchStatus();
-      alert("已刷新模型与通道列表！");
-    }
-
     async function checkProxyStatus() {
+      const pill = document.getElementById('proxy-status');
+      const text = document.getElementById('proxy-status-text');
+      const drawerStat = document.getElementById('drawer-stat-proxy');
       try {
         const res = await fetch('/api/proxy-check');
         const data = await res.json();
-        const tag = document.getElementById('proxy-status');
-        const text = document.getElementById('proxy-status-text');
         if (data.ok) {
-          tag.style.color = '#34d399';
-          text.innerText = `[● 10808 代理连接就绪]`;
+          pill.style.color = '#34d399';
+          text.innerText = `● 10808 代理就绪 (${data.proxy})`;
+          if (drawerStat) {
+            drawerStat.style.color = '#10b981';
+            drawerStat.innerText = '就绪';
+          }
         } else {
-          tag.style.color = '#ef4444';
-          text.innerText = `[● 代理未连通 (${data.proxy})]`;
+          pill.style.color = '#f87171';
+          text.innerText = `● 10808 代理未连通 (${data.proxy})`;
+          if (drawerStat) {
+            drawerStat.style.color = '#f87171';
+            drawerStat.innerText = '异常';
+          }
         }
       } catch (e) {
-        document.getElementById('proxy-status').style.color = '#f59e0b';
-        document.getElementById('proxy-status-text').innerText = `[● 代理检测中...]`;
+        pill.style.color = '#f87171';
+        text.innerText = `● 代理服务检测异常`;
+        if (drawerStat) {
+          drawerStat.style.color = '#f87171';
+          drawerStat.innerText = '异常';
+        }
       }
     }
 
@@ -1297,41 +2239,54 @@
       try {
         const res = await fetch('/api/config');
         configData = await res.json();
-        renderConfig();
+        
+        let keys = configData.api_keys || [];
+        if (keys.length === 0 && configData.api_key) {
+          keys = [configData.api_key];
+        }
+        document.getElementById('keys-input').value = keys.join('\n');
+        onKeysChanged();
+
+        document.getElementById('cfg-tries').value = configData.tries_per_round || 5;
+        document.getElementById('cfg-intra-delay').value = configData.intra_round_delay_sec || 5;
+        document.getElementById('cfg-cooldown').value = configData.round_cooldown_sec || 30;
+        document.getElementById('cfg-interval').value = configData.check_interval_min || 30;
+        document.getElementById('cfg-retries').value = configData.max_retries || 3;
+        document.getElementById('cfg-proxy').value = configData.proxy || "http://127.0.0.1:10808";
+        
+        const closeVal = configData.close_behavior || "silent";
+        if (closeVal === "exit") {
+          selectCustomOption('custom-select-close', 'exit', '彻底退出程序', '🚪');
+        } else {
+          selectCustomOption('custom-select-close', 'silent', '进入后台静默运行 (默认推荐)', '🛡️');
+        }
+
+        document.getElementById('cfg-random-prompt').checked = configData.random_heartbeat !== false;
+        
+        const prompts = (configData.heartbeat_prompts && configData.heartbeat_prompts.length > 0) 
+          ? configData.heartbeat_prompts 
+          : defaultPromptsList;
+        document.getElementById('cfg-prompts-input').value = prompts.join('\n');
+
+        renderModelSelection();
       } catch (e) {
         console.error("fetchConfig error", e);
       }
     }
 
-    function renderConfig() {
-      if (!configData) return;
-      document.getElementById('keys-input').value = (configData.api_keys || []).join('\n');
-      onKeysChanged();
-
-      document.getElementById('cfg-random-prompt').checked = configData.random_heartbeat !== false;
-      document.getElementById('cfg-prompts-input').value = (configData.heartbeat_prompts || defaultPromptsList).join('\n');
-      document.getElementById('cfg-tries').value = configData.tries_per_round || 5;
-      document.getElementById('cfg-intra-delay').value = configData.intra_round_delay_sec || 5;
-      document.getElementById('cfg-cooldown').value = configData.round_cooldown_sec || 30;
-      document.getElementById('cfg-interval').value = configData.check_interval_min || 30;
-      document.getElementById('cfg-retries').value = configData.max_retries || 3;
-      document.getElementById('cfg-proxy').value = configData.proxy || 'http://127.0.0.1:10808';
-      document.getElementById('cfg-close-behavior').value = configData.close_behavior || 'silent';
-
-      renderModelSelection();
-    }
-
     function renderModelSelection() {
-      const container = document.getElementById('model-list-grid');
-      const selected = new Set(configData?.selected_models || []);
+      if (!modelCandidates || modelCandidates.length === 0) return;
+      const grid = document.getElementById('model-list-grid');
+      const selected = new Set(configData && configData.selected_models ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"]);
+
       document.getElementById('tab-model-count').innerText = selected.size;
       document.getElementById('models-header-count').innerText = `共加载 ${modelCandidates.length} 个模型 (已勾选 ${selected.size} 个)`;
 
-      container.innerHTML = modelCandidates.map(m => {
+      grid.innerHTML = modelCandidates.map(m => {
         const isChecked = selected.has(m.id) ? 'checked' : '';
-        let badgeClass = 'proto-claude';
-        if (m.type.includes('Codex') || m.type.includes('Responses')) badgeClass = 'proto-codex';
-        else if (m.type.includes('OpenAI')) badgeClass = 'proto-openai';
+        let protoBadgeClass = 'proto-codex';
+        if (m.type && m.type.includes('Claude')) protoBadgeClass = 'proto-claude';
+        else if (m.type && m.type.includes('OpenAI')) protoBadgeClass = 'proto-openai';
 
         return `
           <label class="model-card-box">
@@ -1339,9 +2294,9 @@
             <div class="model-meta-wrap">
               <div class="model-title-line">
                 <span class="model-id-label">${m.id}</span>
-                <span class="proto-badge ${badgeClass}">${m.type}</span>
+                <span class="proto-badge ${protoBadgeClass}">${m.type || '专属协议'}</span>
               </div>
-              <div class="model-desc-text">${m.desc}</div>
+              <div class="model-desc-text">${m.desc || ''}</div>
             </div>
           </label>
         `;
@@ -1354,6 +2309,7 @@
       configData.selected_models = selectedIds;
       document.getElementById('tab-model-count').innerText = selectedIds.length;
       document.getElementById('models-header-count').innerText = `共加载 ${modelCandidates.length} 个模型 (已勾选 ${selectedIds.length} 个)`;
+      updateDrawerStats();
     }
 
     function selectAllModels() {
@@ -1400,11 +2356,11 @@
       const summary = document.getElementById('matrix-summary-text');
       if (isRunning) {
         startBtn.style.display = 'none';
-        stopBtn.className = 'btn-dock-stop enabled';
+        stopBtn.className = 'btn-action-base btn-dock-stop enabled';
         summary.innerText = "🟢 正在并发挂机保活中...";
       } else {
         startBtn.style.display = 'inline-flex';
-        stopBtn.className = 'btn-dock-stop';
+        stopBtn.className = 'btn-action-base btn-dock-stop';
         summary.innerText = "⚪ 挂机已停止/未启动";
       }
     }
@@ -1412,6 +2368,11 @@
     function renderMonitorCards(states) {
       const grid = document.getElementById('monitor-grid');
       const summaryLbl = document.getElementById('monitor-summary-lbl');
+
+      let totalChecks = 0;
+      states.forEach(s => totalChecks += (s.check_count || 0));
+      const drawerChecks = document.getElementById('drawer-stat-checks');
+      if (drawerChecks) drawerChecks.innerText = totalChecks;
 
       if (states.length === 0) {
         summaryLbl.innerText = "尚未开启保活通道。点击下方【开始并发挂机保活】即可启动。";

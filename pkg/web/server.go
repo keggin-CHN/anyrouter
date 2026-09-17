@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"anyrouter/pkg/client"
 	"anyrouter/pkg/keeper"
 )
 
@@ -155,6 +158,95 @@ func (s *Server) Start() error {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"proxy": proxyURL,
 			"ok":    ok,
+		})
+	})
+
+	// API: Ping Probe (used by Drawer instant model test playground)
+	mux.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			Key    string `json:"key"`
+			Model  string `json:"model"`
+			Prompt string `json:"prompt"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+			return
+		}
+		cfg := s.matrix.GetConfig()
+		if req.Key == "" {
+			if len(cfg.APIKeys) > 0 {
+				req.Key = cfg.APIKeys[0]
+			} else if cfg.APIKey != "" {
+				req.Key = cfg.APIKey
+			}
+		}
+		if req.Model == "" {
+			req.Model = "gpt-6-astra"
+		}
+		if req.Prompt == "" {
+			req.Prompt = "1+1"
+		}
+
+		c, err := client.NewClient(client.ClientConfig{
+			APIKey:  req.Key,
+			Proxy:   cfg.Proxy,
+			Timeout: 20 * time.Second,
+		})
+		if err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "error": err.Error()})
+			return
+		}
+
+		t0 := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		defer cancel()
+
+		events, streamErr := c.StreamChat(ctx, req.Model, req.Prompt, nil, "", "", 128)
+		if streamErr != nil {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":      false,
+				"error":   streamErr.Error(),
+				"time_ms": time.Since(t0).Milliseconds(),
+			})
+			return
+		}
+
+		var fullText strings.Builder
+		var fullThinking strings.Builder
+		var lastErr string
+		success := false
+
+		for ev := range events {
+			if ev.Type == "text" {
+				fullText.WriteString(ev.Delta)
+				success = true
+			} else if ev.Type == "thinking" {
+				fullThinking.WriteString(ev.Delta)
+				success = true
+			} else if ev.Type == "stream_error" {
+				lastErr = ev.Reason
+			} else if ev.Type == "done" {
+				if ev.FullText != "" {
+					fullText.Reset()
+					fullText.WriteString(ev.FullText)
+					success = true
+				}
+			}
+		}
+
+		elapsedMs := time.Since(t0).Milliseconds()
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok":       success,
+			"reply":    fullText.String(),
+			"thinking": fullThinking.String(),
+			"error":    lastErr,
+			"time_ms":  elapsedMs,
+			"model":    req.Model,
 		})
 	})
 
