@@ -247,8 +247,8 @@ func TestClientDeepMasqueradeVerification(t *testing.T) {
 		t.Fatalf("gemini-2.5-pro should be openai protocol")
 	}
 
-	// 验证 10 大题库存在且完备
-	if len(keeper.DefaultHeartbeatPrompts) != 10 {
-		t.Fatalf("expected 10 default prompts, got %d", len(keeper.DefaultHeartbeatPrompts))
+	// 验证 100 道备用题库存在且完备
+	if len(keeper.DefaultHeartbeatPrompts) != 100 {
+		t.Fatalf("expected 100 default prompts, got %d", len(keeper.DefaultHeartbeatPrompts))
 	}
 }

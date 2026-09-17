@@ -30,8 +30,8 @@ func TestConfigLoadSave(t *testing.T) {
 	if len(cfg.APIKeys) == 0 {
 		t.Fatalf("expected api keys in default config")
 	}
-	if len(cfg.HeartbeatPrompts) != 10 {
-		t.Fatalf("expected 10 default prompts, got %d", len(cfg.HeartbeatPrompts))
+	if len(cfg.HeartbeatPrompts) != 100 {
+		t.Fatalf("expected 100 default prompts, got %d", len(cfg.HeartbeatPrompts))
 	}
 
 	cfg.CheckIntervalMin = 45
