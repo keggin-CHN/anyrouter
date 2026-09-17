@@ -169,7 +169,6 @@ func TestProtocolDetectionMatrix(t *testing.T) {
 		{"claude-opus-4-7", ProtocolClaude},
 		{"claude-fable-5-1", ProtocolClaude},
 		{"claude-3-7-sonnet", ProtocolClaude},
-		{"gemini-2.5-pro", ProtocolOpenAI},
 		{"gpt-4o", ProtocolOpenAI},
 	}
 
@@ -195,13 +194,13 @@ func TestOpenAIMasquerade(t *testing.T) {
 		t.Errorf("missing text/event-stream in Accept: %s", headers.Get("Accept"))
 	}
 
-	body := c.buildOpenAIBody("gemini-2.5-pro", []Message{{Role: "user", Content: "1+1=?"}}, "sys instruction", 128)
+	body := c.buildOpenAIBody("gpt-4o", []Message{{Role: "user", Content: "1+1=?"}}, "sys instruction", 128)
 	bBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("marshal err: %v", err)
 	}
 	jsonStr := string(bBytes)
-	if !strings.Contains(jsonStr, "gemini-2.5-pro") || !strings.Contains(jsonStr, "1+1=?") || !strings.Contains(jsonStr, "sys instruction") {
+	if !strings.Contains(jsonStr, "gpt-4o") || !strings.Contains(jsonStr, "1+1=?") || !strings.Contains(jsonStr, "sys instruction") {
 		t.Errorf("openai body incomplete: %s", jsonStr)
 	}
 }

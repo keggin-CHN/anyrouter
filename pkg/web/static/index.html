@@ -1891,16 +1891,6 @@
                 </div>
                 <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
               </div>
-              <div class="custom-select-option" data-value="gemini-2.5-pro" onclick="selectCustomOption('custom-select-drawer-model', 'gemini-2.5-pro', 'gemini-2.5-pro (OpenAI 标准)', '💎')">
-                <div class="option-left">
-                  <span class="option-icon">💎</span>
-                  <div class="option-meta">
-                    <div class="option-title">gemini-2.5-pro</div>
-                    <div class="option-desc">Google Gemini 2.5 Pro OpenAI 兼容端点</div>
-                  </div>
-                </div>
-                <svg class="option-check-icon" viewBox="0 0 24 24" fill="none" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-              </div>
             </div>
             <input type="hidden" id="drawer-ping-model-val" value="gpt-6-astra">
           </div>
@@ -2367,7 +2357,7 @@
     function renderModelSelection() {
       if (!modelCandidates || modelCandidates.length === 0) return;
       const grid = document.getElementById('model-list-grid');
-      const selected = new Set(configData && configData.selected_models ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"]);
+      const selected = new Set(configData && configData.selected_models ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1"]);
 
       document.getElementById('tab-model-count').innerText = selected.size;
       document.getElementById('models-header-count').innerText = `共加载 ${modelCandidates.length} 个模型 (已勾选 ${selected.size} 个)`;
@@ -2413,7 +2403,7 @@
     }
 
     function resetDefaultModels() {
-      const defaults = new Set(["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"]);
+      const defaults = new Set(["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1"]);
       document.querySelectorAll('#model-list-grid input[type="checkbox"]').forEach(b => {
         b.checked = defaults.has(b.value);
       });
@@ -2586,7 +2576,7 @@
         random_heartbeat: document.getElementById('cfg-random-prompt').checked,
         heartbeat_prompts: prompts.length > 0 ? prompts : defaultPromptsList,
         heartbeat_prompt: prompts.length > 0 ? prompts[0] : "1+1",
-        selected_models: (configData && configData.selected_models && configData.selected_models.length > 0) ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"],
+        selected_models: (configData && configData.selected_models && configData.selected_models.length > 0) ? configData.selected_models : ["gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1"],
         close_behavior: document.getElementById('cfg-close-behavior').value
       };
 

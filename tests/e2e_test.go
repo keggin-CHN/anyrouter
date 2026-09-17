@@ -205,10 +205,10 @@ func TestWebAPIServerFlow(t *testing.T) {
 	}
 }
 
-func TestFourModelsExclusiveList(t *testing.T) {
-	expected := []string{"gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1", "gemini-2.5-pro"}
-	if len(keeper.AvailableModelCandidates) != 4 {
-		t.Fatalf("expected exactly 4 available models, got %d", len(keeper.AvailableModelCandidates))
+func TestCoreModelsExclusiveList(t *testing.T) {
+	expected := []string{"gpt-6-astra", "claude-opus-4-8", "claude-fable-5-1"}
+	if len(keeper.AvailableModelCandidates) != 3 {
+		t.Fatalf("expected exactly 3 available models, got %d", len(keeper.AvailableModelCandidates))
 	}
 	for i, m := range keeper.AvailableModelCandidates {
 		if m.ID != expected[i] {
@@ -220,8 +220,8 @@ func TestFourModelsExclusiveList(t *testing.T) {
 	if cfg.CloseBehavior != "silent" {
 		t.Fatalf("expected default CloseBehavior='silent', got %s", cfg.CloseBehavior)
 	}
-	if len(cfg.SelectedModels) != 4 {
-		t.Fatalf("expected 4 selected models, got %d", len(cfg.SelectedModels))
+	if len(cfg.SelectedModels) != 3 {
+		t.Fatalf("expected 3 selected models, got %d", len(cfg.SelectedModels))
 	}
 }
 
@@ -233,7 +233,7 @@ func TestClientDeepMasqueradeVerification(t *testing.T) {
 		t.Fatalf("NewClient error: %v", err)
 	}
 
-	// 验证 4 大模型各自的协议体系与深度伪装
+	// 验证 3 大核心模型各自的协议体系与深度伪装
 	if client.DetectProtocol("gpt-6-astra") != client.ProtocolCodex {
 		t.Fatalf("gpt-6-astra should be codex protocol")
 	}
@@ -242,9 +242,6 @@ func TestClientDeepMasqueradeVerification(t *testing.T) {
 	}
 	if client.DetectProtocol("claude-fable-5-1") != client.ProtocolClaude {
 		t.Fatalf("claude-fable-5-1 should be claude protocol")
-	}
-	if client.DetectProtocol("gemini-2.5-pro") != client.ProtocolOpenAI {
-		t.Fatalf("gemini-2.5-pro should be openai protocol")
 	}
 
 	// 验证 100 道备用题库存在且完备

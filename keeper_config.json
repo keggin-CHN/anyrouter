@@ -116,8 +116,7 @@
   "selected_models": [
     "gpt-6-astra",
     "claude-opus-4-8",
-    "claude-fable-5-1",
-    "gemini-2.5-pro"
+    "claude-fable-5-1"
   ],
   "close_behavior": "silent"
 }

@@ -129,7 +129,6 @@ var DefaultModels = []string{
 	"gpt-6-astra",
 	"claude-opus-4-8",
 	"claude-fable-5-1",
-	"gemini-2.5-pro",
 }
 
 type ModelInfo struct {
@@ -142,7 +141,6 @@ var AvailableModelCandidates = []ModelInfo{
 	{ID: "gpt-6-astra", Type: "Codex / Responses", Desc: "OpenAI Responses 协议 (核心推荐)"},
 	{ID: "claude-opus-4-8", Type: "Claude Code", Desc: "Anthropic Claude Code 协议 (旗舰推荐)"},
 	{ID: "claude-fable-5-1", Type: "Claude Code", Desc: "Anthropic Claude Code 协议 (极速推荐)"},
-	{ID: "gemini-2.5-pro", Type: "OpenAI 标准", Desc: "Google Gemini 2.5 Pro 协议"},
 }
 
 // Config represents keeper_config.json structure.
