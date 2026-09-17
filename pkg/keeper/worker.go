@@ -366,7 +366,7 @@ func (w *Worker) squeezeIn(ctx context.Context) bool {
 			if idx := strings.Index(cleanReason, "最后报错: "); idx != -1 {
 				cleanReason = cleanReason[idx+len("最后报错: "):]
 			}
-			w.log(fmt.Sprintf("[第 %d 轮 #%d/%d] 排队未挤上: %s", roundNum, attemptInRound, w.triesPerRound, truncateStr(cleanReason, 50)), "warn")
+			w.log(fmt.Sprintf("[第 %d 轮 #%d/%d] 排队未挤上: %s", roundNum, attemptInRound, w.triesPerRound, truncateStr(cleanReason, 120)), "warn")
 		}
 
 		// 轮次冷却与间隔等待

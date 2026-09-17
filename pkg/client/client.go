@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -81,9 +82,17 @@ func NewClient(cfg ClientConfig) (*AnyRouterClient, error) {
 	}
 
 	transport := &http.Transport{
-		MaxIdleConns:        100,
-		IdleConnTimeout:     90 * time.Second,
-		TLSHandshakeTimeout: 15 * time.Second,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       15 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 20 * time.Second,
+		ForceAttemptHTTP2:     false,
+		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disable HTTP/2 over proxy to prevent deadlock
+		TLSClientConfig: &tls.Config{
+			Renegotiation:      tls.RenegotiateFreelyAsClient, // Support Cloudflare/ESA SSL renegotiation
+			InsecureSkipVerify: true,
+		},
+		DisableKeepAlives: true, // Avoid broken socket reuse through local proxy
 	}
 
 	if proxy != "" && proxy != "none" && proxy != "direct" {
@@ -266,22 +275,19 @@ func (c *AnyRouterClient) StreamChat(
 						return
 					}
 				} else if retryableStatusCodes[statusCode] {
-					b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+					b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 					resp.Body.Close()
-					msg := strings.TrimSpace(string(b))
-					if msg == "" {
-						msg = "服务排队中/暂时过载"
-					}
-					retryReason = fmt.Sprintf("HTTP %d: %s", statusCode, msg)
+					errMsg := parseErrorMessage(b, statusCode)
+					retryReason = fmt.Sprintf("HTTP %d: %s", statusCode, errMsg)
 				} else {
-					b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+					b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 					resp.Body.Close()
-					errMsg := fmt.Sprintf("不可重试的平台报错 (HTTP %d): %s", statusCode, string(b))
+					errMsg := parseErrorMessage(b, statusCode)
 					out <- StreamEvent{
 						Type:       "stream_error",
 						StatusCode: statusCode,
 						Reason:     errMsg,
-						Err:        fmt.Errorf("%s", errMsg),
+						Err:        fmt.Errorf("HTTP %d: %s", statusCode, errMsg),
 					}
 					return
 				}
@@ -291,8 +297,8 @@ func (c *AnyRouterClient) StreamChat(
 			if c.maxRetries != nil && attempt >= *c.maxRetries {
 				out <- StreamEvent{
 					Type:    "stream_error",
-					Reason:  fmt.Sprintf("已达到最大重试次数 (%d)，最后报错: %s", *c.maxRetries, retryReason),
-					Err:     fmt.Errorf("max retries exceeded"),
+					Reason:  retryReason,
+					Err:     fmt.Errorf("%s", retryReason),
 					Attempt: attempt,
 				}
 				return
@@ -376,4 +382,44 @@ func (c *AnyRouterClient) Chat(ctx context.Context, model, prompt string) (strin
 		}
 	}
 	return fullText, nil
+}
+
+func parseErrorMessage(raw []byte, statusCode int) string {
+	var oneApiErr struct {
+		Error interface{} `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &oneApiErr); err == nil && oneApiErr.Error != nil {
+		switch v := oneApiErr.Error.(type) {
+		case string:
+			if v != "" {
+				return v
+			}
+		case map[string]interface{}:
+			if m, ok := v["message"].(string); ok && m != "" {
+				if idx := strings.Index(m, " (request id:"); idx != -1 {
+					m = m[:idx]
+				}
+				return m
+			}
+		}
+	}
+	msg := strings.TrimSpace(string(raw))
+	if msg == "" {
+		switch statusCode {
+		case 500:
+			return "平台模型通道繁忙/负载达上限"
+		case 502, 503, 504:
+			return "平台服务暂时过载 (Service Unavailable)"
+		case 429:
+			return "平台触发速率限制 (Rate Limited)"
+		case 404:
+			return "模型不存在或未开放"
+		default:
+			return fmt.Sprintf("HTTP %d 状态异常", statusCode)
+		}
+	}
+	if len(msg) > 120 {
+		return msg[:120] + "..."
+	}
+	return msg
 }
