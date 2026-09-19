@@ -7,9 +7,9 @@ import (
 )
 
 func TestMaskKey(t *testing.T) {
-	k := "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2"
+	k := "sk-test-abcdefghijklmnopqrstuvwxyz1234"
 	masked := MaskKey(k)
-	if masked != "sk-BZMS...p9T2" {
+	if masked != "sk-test...1234" {
 		t.Errorf("unexpected masked key: %s", masked)
 	}
 
@@ -27,8 +27,8 @@ func TestConfigLoadSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load default config failed: %v", err)
 	}
-	if len(cfg.APIKeys) == 0 {
-		t.Fatalf("expected api keys in default config")
+	if len(cfg.APIKeys) != 0 || cfg.APIKey != "" {
+		t.Fatalf("default config must not contain API credentials")
 	}
 	if len(cfg.HeartbeatPrompts) != 100 {
 		t.Fatalf("expected 100 default prompts, got %d", len(cfg.HeartbeatPrompts))
@@ -78,5 +78,26 @@ func TestExistingConfigCompatibility(t *testing.T) {
 		if len(cfg.SelectedModels) == 0 {
 			t.Errorf("no models loaded from real config")
 		}
+	}
+}
+
+func TestGetStatesOrder(t *testing.T) {
+	cfg := DefaultConfig()
+	m := NewMatrix("", cfg)
+	m.states["key2::modelA"] = ChannelState{TaskID: "key2::modelA", KeyLabel: "Key-2", ModelID: "modelA", Status: StatusSqueezing}
+	m.states["key1::modelB"] = ChannelState{TaskID: "key1::modelB", KeyLabel: "Key-1", ModelID: "modelB", Status: StatusSqueezing}
+	m.states["key2::modelB"] = ChannelState{TaskID: "key2::modelB", KeyLabel: "Key-2", ModelID: "modelB", Status: StatusAvailable}
+
+	states := m.GetStates()
+	if len(states) != 3 {
+		t.Fatalf("expected 3 states, got %d", len(states))
+	}
+	// Available channel must be first
+	if states[0].Status != StatusAvailable || states[0].TaskID != "key2::modelB" {
+		t.Errorf("expected available channel to be first, got %+v", states[0])
+	}
+	// Key-1 should precede Key-2 for remaining squeezing channels
+	if states[1].KeyLabel != "Key-1" {
+		t.Errorf("expected Key-1 next, got %+v", states[1])
 	}
 }

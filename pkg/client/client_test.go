@@ -99,7 +99,7 @@ data: [DONE]
 `
 	out := make(chan StreamEvent, 10)
 	go func() {
-		parseCodexSSE(bytes.NewBufferString(sseInput), out)
+		parseCodexSSE(bytes.NewBufferString(sseInput), func(ev StreamEvent) bool { out <- ev; return true })
 		close(out)
 	}()
 
@@ -135,7 +135,7 @@ data: [DONE]
 `
 	out := make(chan StreamEvent, 10)
 	go func() {
-		parseClaudeSSE(bytes.NewBufferString(sseInput), out)
+		parseClaudeSSE(bytes.NewBufferString(sseInput), func(ev StreamEvent) bool { out <- ev; return true })
 		close(out)
 	}()
 
@@ -214,7 +214,7 @@ data: [DONE]
 `
 	out := make(chan StreamEvent, 10)
 	go func() {
-		parseOpenAISSE(bytes.NewBufferString(sseInput), out)
+		parseOpenAISSE(bytes.NewBufferString(sseInput), func(ev StreamEvent) bool { out <- ev; return true })
 		close(out)
 	}()
 
@@ -235,4 +235,3 @@ data: [DONE]
 		t.Errorf("unexpected thinking: %s", fullThinking.String())
 	}
 }
-

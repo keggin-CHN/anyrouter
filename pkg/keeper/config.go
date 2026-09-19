@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -145,29 +146,25 @@ var AvailableModelCandidates = []ModelInfo{
 
 // Config represents keeper_config.json structure.
 type Config struct {
-	mu                  sync.RWMutex `json:"-"`
-	APIKeys             []string     `json:"api_keys"`
-	APIKey              string       `json:"api_key"`
-	Proxy               string       `json:"proxy"`
-	CheckIntervalMin    int          `json:"check_interval_min"`
-	RoundCooldownSec    int          `json:"round_cooldown_sec"`
-	TriesPerRound       int          `json:"tries_per_round"`
-	IntraRoundDelaySec  int          `json:"intra_round_delay_sec"`
-	MaxRetries          int          `json:"max_retries"`
-	RandomHeartbeat     bool         `json:"random_heartbeat"`
-	HeartbeatPrompts    []string     `json:"heartbeat_prompts"`
-	HeartbeatPrompt     string       `json:"heartbeat_prompt"`
-	SelectedModels      []string     `json:"selected_models"`
-	CloseBehavior       string       `json:"close_behavior"`
+	APIKeys            []string `json:"api_keys"`
+	APIKey             string   `json:"api_key"`
+	Proxy              string   `json:"proxy"`
+	CheckIntervalMin   int      `json:"check_interval_min"`
+	RoundCooldownSec   int      `json:"round_cooldown_sec"`
+	TriesPerRound      int      `json:"tries_per_round"`
+	IntraRoundDelaySec int      `json:"intra_round_delay_sec"`
+	MaxRetries         int      `json:"max_retries"`
+	RandomHeartbeat    bool     `json:"random_heartbeat"`
+	HeartbeatPrompts   []string `json:"heartbeat_prompts"`
+	HeartbeatPrompt    string   `json:"heartbeat_prompt"`
+	SelectedModels     []string `json:"selected_models"`
+	CloseBehavior      string   `json:"close_behavior"`
 }
 
 // DefaultConfig returns a preconfigured default configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		APIKeys: []string{
-			"sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2",
-		},
-		APIKey:             "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2",
+		APIKeys:            []string{},
 		Proxy:              "http://127.0.0.1:10808",
 		CheckIntervalMin:   30,
 		RoundCooldownSec:   30,
@@ -196,7 +193,9 @@ func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		cfg := DefaultConfig()
-		_ = SaveConfig(path, cfg)
+		if err := SaveConfig(path, cfg); err != nil {
+			return nil, err
+		}
 		return cfg, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("read config error: %w", err)
@@ -207,42 +206,96 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config error: %w", err)
 	}
 
-	// Normalize
-	if len(cfg.APIKeys) == 0 && cfg.APIKey != "" {
-		cfg.APIKeys = []string{cfg.APIKey}
-	} else if len(cfg.APIKeys) > 0 && cfg.APIKey == "" {
-		cfg.APIKey = cfg.APIKeys[0]
+	cfg.Normalize()
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
 	}
-
-	cleanKeys := make([]string, 0, len(cfg.APIKeys))
-	seen := make(map[string]bool)
-	for _, k := range cfg.APIKeys {
-		trimmed := strings.TrimSpace(k)
-		if trimmed != "" && !seen[trimmed] {
-			seen[trimmed] = true
-			cleanKeys = append(cleanKeys, trimmed)
-		}
-	}
-	cfg.APIKeys = cleanKeys
-
-	if len(cfg.HeartbeatPrompts) == 0 {
-		cfg.HeartbeatPrompts = append([]string(nil), DefaultHeartbeatPrompts...)
-	}
-	if len(cfg.SelectedModels) == 0 {
-		cfg.SelectedModels = append([]string(nil), DefaultModels...)
-	}
-
 	return cfg, nil
 }
 
-// SaveConfig writes the configuration to the specified JSON path.
-func SaveConfig(path string, cfg *Config) error {
-	cfg.mu.RLock()
-	defer cfg.mu.RUnlock()
+// Clone returns an independent snapshot, including all mutable slices.
+func (cfg *Config) Clone() *Config {
+	copy := *cfg
+	copy.APIKeys = slices.Clone(cfg.APIKeys)
+	copy.HeartbeatPrompts = slices.Clone(cfg.HeartbeatPrompts)
+	copy.SelectedModels = slices.Clone(cfg.SelectedModels)
+	return &copy
+}
 
+// Normalize keeps legacy single-key configurations compatible with the key pool.
+func (cfg *Config) Normalize() {
+	if len(cfg.APIKeys) == 0 && strings.TrimSpace(cfg.APIKey) != "" {
+		cfg.APIKeys = []string{cfg.APIKey}
+	}
+	cfg.APIKeys = cleanStrings(cfg.APIKeys)
+	cfg.APIKey = ""
+	if len(cfg.APIKeys) > 0 {
+		cfg.APIKey = cfg.APIKeys[0]
+	}
+	cfg.SelectedModels = cleanStrings(cfg.SelectedModels)
+	cfg.HeartbeatPrompts = cleanStrings(cfg.HeartbeatPrompts)
+	if len(cfg.HeartbeatPrompts) == 0 {
+		if prompt := strings.TrimSpace(cfg.HeartbeatPrompt); prompt != "" {
+			cfg.HeartbeatPrompts = []string{prompt}
+		} else {
+			cfg.HeartbeatPrompts = slices.Clone(DefaultHeartbeatPrompts)
+		}
+	}
+	cfg.HeartbeatPrompt = cfg.HeartbeatPrompts[0]
+	cfg.Proxy = strings.TrimSpace(cfg.Proxy)
+	if cfg.Proxy == "" {
+		cfg.Proxy = "http://127.0.0.1:10808"
+	}
+}
+
+func cleanStrings(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+// Validate rejects invalid parameters while preserving existing custom schedules.
+func (cfg *Config) Validate() error {
+	maxInt := int(^uint(0) >> 1)
+	maxSeconds := int((1<<63 - 1) / int64(time.Second))
+	maxMinutes := int((1<<63 - 1) / int64(time.Minute))
+	for _, field := range []struct {
+		name            string
+		value, min, max int
+	}{
+		{"每轮尝试次数", cfg.TriesPerRound, 1, maxInt},
+		{"轮内间隔（秒）", cfg.IntraRoundDelaySec, 1, maxSeconds},
+		{"轮末冷却（秒）", cfg.RoundCooldownSec, 5, maxSeconds},
+		{"测活周期（分钟）", cfg.CheckIntervalMin, 1, maxMinutes},
+		{"测活重试次数", cfg.MaxRetries, 1, maxInt},
+	} {
+		if field.value < field.min || field.value > field.max {
+			return fmt.Errorf("%s必须在 %d–%d 之间", field.name, field.min, field.max)
+		}
+	}
+	if cfg.CloseBehavior != "silent" && cfg.CloseBehavior != "exit" {
+		return fmt.Errorf("无效的关闭行为")
+	}
+	if cfg.Proxy != "none" && cfg.Proxy != "direct" {
+		if _, err := proxyAddress(cfg.Proxy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SaveConfig replaces the file only after the new contents have been flushed.
+func SaveConfig(path string, cfg *Config) error {
 	dir := filepath.Dir(path)
-	if dir != "" && dir != "." {
-		_ = os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -250,7 +303,25 @@ func SaveConfig(path string, cfg *Config) error {
 		return fmt.Errorf("marshal config error: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0644)
+	f, err := os.CreateTemp(dir, ".keeper-config-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create config file: %w", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("flush config: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close config: %w", err)
+	}
+	if err := os.Rename(f.Name(), path); err != nil {
+		return fmt.Errorf("replace config: %w", err)
+	}
+	return nil
 }
 
 // CheckProxyReachable checks if the local proxy port is reachable.
@@ -259,10 +330,9 @@ func CheckProxyReachable(proxyURL string) bool {
 	if proxy == "" || proxy == "none" || proxy == "direct" {
 		return true
 	}
-	parts := strings.Split(proxy, "//")
-	addr := parts[len(parts)-1]
-	if strings.Contains(addr, "/") {
-		addr = strings.Split(addr, "/")[0]
+	addr, err := proxyAddress(proxy)
+	if err != nil {
+		return false
 	}
 	conn, err := net.DialTimeout("tcp", addr, 1500*time.Millisecond)
 	if err != nil {
@@ -272,3 +342,27 @@ func CheckProxyReachable(proxyURL string) bool {
 	return true
 }
 
+func proxyAddress(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" {
+		return "", fmt.Errorf("代理地址无效")
+	}
+	port := u.Port()
+	switch u.Scheme {
+	case "http":
+		if port == "" {
+			port = "80"
+		}
+	case "https":
+		if port == "" {
+			port = "443"
+		}
+	case "socks5", "socks5h":
+		if port == "" {
+			port = "1080"
+		}
+	default:
+		return "", fmt.Errorf("代理仅支持 http、https、socks5 或 socks5h")
+	}
+	return net.JoinHostPort(u.Hostname(), port), nil
+}

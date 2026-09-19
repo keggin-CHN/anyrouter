@@ -1,12 +1,13 @@
 {
   "api_keys": [
-    "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2"
+    "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2",
+    "sk-BDbXKEpMZYwDRWeGMyuZU9y6PgzXDetfGHDkW7GYtQO1BL0Q"
   ],
   "api_key": "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2",
   "proxy": "http://127.0.0.1:10808",
   "check_interval_min": 30,
   "round_cooldown_sec": 30,
-  "tries_per_round": 5,
+  "tries_per_round": 50,
   "intra_round_delay_sec": 5,
   "max_retries": 3,
   "random_heartbeat": true,

@@ -5,21 +5,34 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"anyrouter/pkg/client"
 	"anyrouter/pkg/keeper"
 	"anyrouter/pkg/web"
 )
 
+func testConfig(t *testing.T) *keeper.Config {
+	t.Helper()
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "test proxy: upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(proxy.Close)
+	cfg := keeper.DefaultConfig()
+	cfg.APIKeys = []string{"sk-test-key"}
+	cfg.Proxy = proxy.URL
+	return cfg
+}
+
 func TestFullE2EFlow(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "test_keeper_config.json")
 
 	// 1. 测试配置保存与多 Key 去重
-	cfg := keeper.DefaultConfig()
+	cfg := testConfig(t)
 	cfg.APIKeys = []string{
 		"sk-key1111111111111111111111111111111111111111111111111",
 		"sk-key2222222222222222222222222222222222222222222222222",
@@ -44,13 +57,10 @@ func TestFullE2EFlow(t *testing.T) {
 
 	// 2. 启动 Matrix 管理池
 	matrix := keeper.NewMatrix(cfgPath, loadedCfg)
+	t.Cleanup(matrix.Stop)
 	if matrix.IsRunning() {
 		t.Fatalf("matrix should not be running yet")
 	}
-
-	// 启动 Web 服务
-	server := web.NewServer(0, matrix) // random port if 0, but server default is 28888; let's test handler directly
-	_ = server
 
 	// 启动保活通道 (2 keys x 2 models = 4 通道)
 	if err := matrix.Start(); err != nil {
@@ -81,13 +91,17 @@ func TestFullE2EFlow(t *testing.T) {
 		t.Fatalf("expected matrix to have produced initial logs")
 	}
 
+	// Stop producers before asserting an empty log buffer.
+	matrix.Stop()
 	matrix.ClearLogs()
 	if len(matrix.GetLogs(50)) != 0 {
 		t.Fatalf("expected 0 logs after ClearLogs")
 	}
 
 	// 4. 测试代理连通性检测函数
-	_ = keeper.CheckProxyReachable("http://127.0.0.1:10808")
+	if !keeper.CheckProxyReachable(cfg.Proxy) {
+		t.Fatal("local test proxy should be reachable")
+	}
 
 	// 5. 测试 Windows 桌面通知函数 (非阻塞调用，确保不抛 panic)
 	keeper.NotifyDesktop("测试通知", "这是一个自动化功能测试通知")
@@ -102,18 +116,20 @@ func TestFullE2EFlow(t *testing.T) {
 func TestWebAPIServerFlow(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfgPath := filepath.Join(tmpDir, "web_test_config.json")
-	cfg := keeper.DefaultConfig()
-	_ = keeper.SaveConfig(cfgPath, cfg)
+	cfg := testConfig(t)
+	if err := keeper.SaveConfig(cfgPath, cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	matrix := keeper.NewMatrix(cfgPath, cfg)
-	server := web.NewServer(28889, matrix)
+	t.Cleanup(matrix.Stop)
+	server := web.NewServer(0, matrix)
 	if err := server.Start(); err != nil {
 		t.Fatalf("web server start error: %v", err)
 	}
 	defer server.Stop()
 
-	baseURL := "http://127.0.0.1:28889"
-	time.Sleep(100 * time.Millisecond)
+	baseURL := server.Addr()
 
 	// 1. GET /
 	resp, err := http.Get(baseURL + "/")
@@ -189,10 +205,12 @@ func TestWebAPIServerFlow(t *testing.T) {
 		t.Fatalf("proxy-check response missing ok field")
 	}
 
-	// 8. POST /api/hide and /api/exit
-	hideTriggered := false
+	// 8. POST /api/hide and /api/show
+	var hideTriggered, showTriggered atomic.Bool
 	server.SetWindowControls(func() {
-		hideTriggered = true
+		hideTriggered.Store(true)
+	}, func() {
+		showTriggered.Store(true)
 	}, func() {})
 
 	respHide, err := http.Post(baseURL+"/api/hide", "application/json", nil)
@@ -200,8 +218,17 @@ func TestWebAPIServerFlow(t *testing.T) {
 		t.Fatalf("POST /api/hide error: %v", err)
 	}
 	respHide.Body.Close()
-	if !hideTriggered {
+	if !hideTriggered.Load() {
 		t.Fatalf("expected hide callback to be triggered")
+	}
+
+	respShow, err := http.Post(baseURL+"/api/show", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST /api/show error: %v", err)
+	}
+	respShow.Body.Close()
+	if !showTriggered.Load() {
+		t.Fatalf("expected show callback to be triggered")
 	}
 }
 

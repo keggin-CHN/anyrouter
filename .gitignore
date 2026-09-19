@@ -1,5 +1,6 @@
 # Go 编译产物
 anyrouter-keeper.exe
+/dist/
 
 # Go 测试缓存
 /tmp/

@@ -3,6 +3,9 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,17 +21,18 @@ type LogEntry struct {
 
 // Matrix coordinates all Key x Model worker threads.
 type Matrix struct {
-	mu         sync.RWMutex
-	cfgPath    string
-	cfg        *Config
-	workers    map[string]*Worker
-	states     map[string]ChannelState
-	logs       []LogEntry
-	maxLogs    int
-	nextLogID  int64
-	isRunning  bool
-	ctx        context.Context
-	cancelFunc context.CancelFunc
+	lifecycleMu sync.Mutex // Serialize start, stop and reload without blocking worker callbacks.
+	mu          sync.RWMutex
+	cfgPath     string
+	cfg         *Config
+	workers     map[string]*Worker
+	states      map[string]ChannelState
+	logs        []LogEntry
+	maxLogs     int
+	nextLogID   int64
+	isRunning   bool
+	ctx         context.Context
+	cancelFunc  context.CancelFunc
 
 	listenersMu sync.Mutex
 	listeners   map[chan ChannelState]struct{}
@@ -37,6 +41,8 @@ type Matrix struct {
 
 // NewMatrix initializes the manager with configuration.
 func NewMatrix(cfgPath string, cfg *Config) *Matrix {
+	cfg = cfg.Clone()
+	cfg.Normalize()
 	return &Matrix{
 		cfgPath:   cfgPath,
 		cfg:       cfg,
@@ -51,15 +57,28 @@ func NewMatrix(cfgPath string, cfg *Config) *Matrix {
 
 // Start launches workers for all Key x Model combinations.
 func (m *Matrix) Start() error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.start()
+}
+
+func (m *Matrix) start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.isRunning {
 		return nil
 	}
+	if err := m.cfg.Validate(); err != nil {
+		return err
+	}
+	if len(m.cfg.APIKeys) == 0 || len(m.cfg.SelectedModels) == 0 {
+		return fmt.Errorf("请至少配置一个 API Key 和一个模型")
+	}
 
 	m.ctx, m.cancelFunc = context.WithCancel(context.Background())
 	m.isRunning = true
+	m.states = make(map[string]ChannelState)
 
 	keys := m.cfg.APIKeys
 	if len(keys) == 0 && m.cfg.APIKey != "" {
@@ -100,10 +119,16 @@ func (m *Matrix) Start() error {
 
 // Stop safely shuts down all running workers.
 func (m *Matrix) Stop() {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.stop()
+}
+
+func (m *Matrix) stop() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	if !m.isRunning {
+		m.mu.Unlock()
 		return
 	}
 
@@ -112,24 +137,48 @@ func (m *Matrix) Stop() {
 		m.cancelFunc()
 	}
 
-	for _, w := range m.workers {
+	workers := m.workers
+	m.mu.Unlock()
+	// Workers publish their final state before exiting; never wait while holding mu.
+	for _, w := range workers {
 		w.Stop()
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.workers = make(map[string]*Worker)
 	m.isRunning = false
 	m.addLog("", "⏹ 所有通道已停止", "info")
 }
 
-// Reload applies a new configuration and restarts workers.
+// Reload persists a configuration and preserves whether the matrix was running.
 func (m *Matrix) Reload(newCfg *Config) error {
-	m.Stop()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	newCfg = newCfg.Clone()
+	newCfg.Normalize()
+	if err := newCfg.Validate(); err != nil {
+		return err
+	}
+	wasRunning := m.IsRunning()
+	if wasRunning && (len(newCfg.APIKeys) == 0 || len(newCfg.SelectedModels) == 0) {
+		return fmt.Errorf("运行时至少需要一个 API Key 和一个模型")
+	}
+	if m.cfgPath != "" {
+		if err := SaveConfig(m.cfgPath, newCfg); err != nil {
+			return err
+		}
+	}
+	m.stop()
 
 	m.mu.Lock()
 	m.cfg = newCfg
+	m.states = make(map[string]ChannelState)
 	m.mu.Unlock()
 
-	_ = SaveConfig(m.cfgPath, newCfg)
-	return m.Start()
+	if wasRunning {
+		return m.start()
+	}
+	return nil
 }
 
 // IsRunning returns whether matrix is currently active.
@@ -139,15 +188,34 @@ func (m *Matrix) IsRunning() bool {
 	return m.isRunning
 }
 
-// GetStates returns a snapshot of all channel states.
+// GetStates returns a snapshot of all channel states, prioritizing available channels.
 func (m *Matrix) GetStates() []ChannelState {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
 
 	list := make([]ChannelState, 0, len(m.states))
 	for _, s := range m.states {
 		list = append(list, s)
 	}
+	m.mu.RUnlock()
+
+	sort.SliceStable(list, func(i, j int) bool {
+		// 1. Available channels first
+		if (list[i].Status == StatusAvailable) != (list[j].Status == StatusAvailable) {
+			return list[i].Status == StatusAvailable
+		}
+		// 2. KeyLabel order (Key-1, Key-2, ...)
+		if list[i].KeyLabel != list[j].KeyLabel {
+			iKey, iErr := strconv.Atoi(strings.TrimPrefix(list[i].KeyLabel, "Key-"))
+			jKey, jErr := strconv.Atoi(strings.TrimPrefix(list[j].KeyLabel, "Key-"))
+			if iErr == nil && jErr == nil && iKey != jKey {
+				return iKey < jKey
+			}
+			return list[i].KeyLabel < list[j].KeyLabel
+		}
+		// 3. ModelID
+		return list[i].ModelID < list[j].ModelID
+	})
+
 	return list
 }
 
@@ -176,7 +244,7 @@ func (m *Matrix) GetLogs(limit int) []LogEntry {
 func (m *Matrix) GetConfig() *Config {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.cfg
+	return m.cfg.Clone()
 }
 
 func (m *Matrix) addLog(taskID, text, level string) {
@@ -238,9 +306,11 @@ func (m *Matrix) SubscribeStatus() chan ChannelState {
 // UnsubscribeStatus unregisters a state update listener.
 func (m *Matrix) UnsubscribeStatus(ch chan ChannelState) {
 	m.listenersMu.Lock()
-	delete(m.listeners, ch)
-	m.listenersMu.Unlock()
-	close(ch)
+	defer m.listenersMu.Unlock()
+	if _, ok := m.listeners[ch]; ok {
+		delete(m.listeners, ch)
+		close(ch)
+	}
 }
 
 // SubscribeLogs registers a channel for live log entries.
@@ -255,7 +325,9 @@ func (m *Matrix) SubscribeLogs() chan LogEntry {
 // UnsubscribeLogs unregisters a log listener.
 func (m *Matrix) UnsubscribeLogs(ch chan LogEntry) {
 	m.listenersMu.Lock()
-	delete(m.logChans, ch)
-	m.listenersMu.Unlock()
-	close(ch)
+	defer m.listenersMu.Unlock()
+	if _, ok := m.logChans[ch]; ok {
+		delete(m.logChans, ch)
+		close(ch)
+	}
 }

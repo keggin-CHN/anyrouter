@@ -35,6 +35,8 @@
 anyrouter-keeper.exe
 ```
 
+首次运行需要在凭据池中填写自己的 API Key；程序不再内置默认密钥。已有的 `keeper_config.json` 会继续加载，包括每轮 50 次等自定义参数。SDK 可通过 `ClientConfig.APIKey` 或 `ANYROUTER_API_KEY` 环境变量提供密钥。
+
 - **自带专属图标与原生独立窗口**：双击直接弹出 1120×840 独立桌面窗口，无任何黑框命令行控制台，界面交互体验与原 Python 版本 1:1 像素级对齐。
 - **状态栏托盘常驻与静默模式**：关闭窗口自动进入后台静默保活状态，右下角托盘区常驻小图标，无任何弹窗通知骚扰。
 - **开放式前端源码**：前端源码位于根目录下 [`web/index.html`](file:///c:/code/anyrouter/web/index.html)，修改保存后在窗口中刷新即可即时生效。
@@ -59,7 +61,7 @@ import (
 )
 
 func main() {
-	// 初始化客户端 (默认使用 10808 代理与内置/环境变量 Key)
+	// 初始化客户端（默认使用 10808 代理，密钥来自参数或环境变量）
 	c, err := client.NewClient(client.ClientConfig{
 		APIKey:  "sk-your-api-key",
 		Proxy:   "http://127.0.0.1:10808",
@@ -68,6 +70,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer c.CloseIdleConnections()
 
 	ctx := context.Background()
 
@@ -105,3 +108,24 @@ func main() {
 # 编译带内置原生应用图标、零黑框的独立桌面应用程序
 go build -ldflags="-H windowsgui -s -w" -o anyrouter-keeper.exe .
 ```
+
+## 运行与配置说明
+
+- 保存配置会保留当前启停状态：正在运行时重启通道应用新配置，已停止时只保存。写入失败会显示错误，并保留运行中的旧配置；写入时先刷新临时文件，再替换原文件。
+- 停止操作会等待各通道退出，更新为“已停止”。删除 Key 或模型后重新加载，不再保留旧通道卡片。
+- SDK 的 `Timeout` 限制每次请求（包含流式读取）的总时长；`MaxRetries` 沿用原有语义，表示最多尝试次数，`nil` 表示持续重试。提前结束流式读取时，请取消传给 `StreamChat` 的 context。
+- TLS 证书校验默认开启。直连可填写 `direct` 或 `none`；代理模式保留原有的连接兼容策略。
+- 界面隐藏时暂停轮询，恢复可见后刷新。保存失败、参数无效和未选择模型时，不会继续发送启动请求。
+- 本地服务只监听回环地址；修改状态的接口只接受 POST，并校验浏览器请求来源。`-port 0` 可分配空闲端口，端口冲突会在启动时报告。
+
+## 本地验证
+
+测试使用本地模拟服务器与测试密钥，不调用真实模型服务。前端逻辑测试仅需 Node.js，无需安装 npm 依赖。
+
+```powershell
+go test -timeout 45s ./...
+go vet ./...
+node --test tests/dashboard_test.cjs
+```
+
+竞态检测另需配置 C 编译器，并启用 Cgo 后执行 `go test -race ./...`。普通编译和测试仍无需 Cgo。

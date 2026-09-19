@@ -61,9 +61,12 @@ type Worker struct {
 	logCb              LogCallback
 	statusCb           StatusCallback
 
-	mu         sync.RWMutex
-	state      ChannelState
-	cancelFunc context.CancelFunc
+	mu          sync.RWMutex
+	lifecycleMu sync.Mutex
+	state       ChannelState
+	cancelFunc  context.CancelFunc
+	done        chan struct{}
+	clients     map[int]*client.AnyRouterClient
 }
 
 // NewWorker initializes a channel worker.
@@ -107,7 +110,8 @@ func NewWorker(
 		triesPerRound:      tries,
 		intraRoundDelaySec: delaySec,
 		maxRetries:         retries,
-		heartbeatPrompts:   cfg.HeartbeatPrompts,
+		heartbeatPrompts:   append([]string(nil), cfg.HeartbeatPrompts...),
+		clients:            make(map[int]*client.AnyRouterClient),
 		randomHeartbeat:    cfg.RandomHeartbeat,
 		logCb:              logCb,
 		statusCb:           statusCb,
@@ -167,20 +171,47 @@ func (w *Worker) pickPrompt() string {
 }
 
 func (w *Worker) makeClient(maxRetries int) (*client.AnyRouterClient, error) {
-	return client.NewClient(client.ClientConfig{
+	if c := w.clients[maxRetries]; c != nil {
+		return c, nil
+	}
+	c, err := client.NewClient(client.ClientConfig{
 		APIKey:     w.key,
 		Proxy:      w.proxy,
 		MaxRetries: &maxRetries,
 		Timeout:    60 * time.Second,
 	})
+	if err == nil {
+		w.clients[maxRetries] = c
+	}
+	return c, err
 }
 
 // Start runs the worker asynchronously.
 func (w *Worker) Start(parentCtx context.Context) {
+	w.lifecycleMu.Lock()
+	defer w.lifecycleMu.Unlock()
+	if w.done != nil {
+		select {
+		case <-w.done:
+		default:
+			return
+		}
+	}
 	ctx, cancel := context.WithCancel(parentCtx)
 	w.cancelFunc = cancel
+	w.done = make(chan struct{})
+	done := w.done
 
 	go func() {
+		defer close(done)
+		defer cancel()
+		defer func() {
+			for _, c := range w.clients {
+				c.CloseIdleConnections()
+			}
+			w.updateStatus(StatusStopped, "⚪ 已安全停止", "", "", 0, 0, 0)
+			w.log("⏹ 任务已安全停止", "info")
+		}()
 		w.log(
 			fmt.Sprintf("🚀 启动守护 | 阶段一(用不了: %ds一轮/%d次) -> 阶段二(能用: %d分钟测活) | 题库量: %d",
 				w.roundCooldownSec, w.triesPerRound, w.checkIntervalSec/60, len(w.heartbeatPrompts)),
@@ -190,8 +221,6 @@ func (w *Worker) Start(parentCtx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				w.updateStatus(StatusStopped, "⚪ 已安全停止", "", "", 0, 0, 0)
-				w.log("⏹ 任务已安全停止", "info")
 				return
 			default:
 			}
@@ -292,8 +321,11 @@ func (w *Worker) Start(parentCtx context.Context) {
 
 // Stop terminates the worker goroutine.
 func (w *Worker) Stop() {
+	w.lifecycleMu.Lock()
+	defer w.lifecycleMu.Unlock()
 	if w.cancelFunc != nil {
 		w.cancelFunc()
+		<-w.done
 	}
 }
 
@@ -460,8 +492,9 @@ func (w *Worker) sendHeartbeat(ctx context.Context, prompt string) (bool, string
 }
 
 func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }

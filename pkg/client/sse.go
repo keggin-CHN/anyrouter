@@ -9,7 +9,7 @@ import (
 )
 
 // parseCodexSSE parses an SSE stream produced by OpenAI Responses Lite.
-func parseCodexSSE(r io.Reader, out chan<- StreamEvent) {
+func parseCodexSSE(r io.Reader, emit func(StreamEvent) bool) {
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, 1024*1024) // up to 1MB per line
@@ -24,7 +24,10 @@ func parseCodexSSE(r io.Reader, out chan<- StreamEvent) {
 		}
 
 		dataStr := strings.TrimSpace(line[5:])
-		if dataStr == "" || dataStr == "[DONE]" {
+		if dataStr == "" {
+			continue
+		}
+		if dataStr == "[DONE]" {
 			break
 		}
 
@@ -41,10 +44,10 @@ func parseCodexSSE(r io.Reader, out chan<- StreamEvent) {
 			if msg == "" {
 				msg = fmt.Sprintf("%v", errMap)
 			}
-			out <- StreamEvent{
+			emit(StreamEvent{
 				Type:   "stream_error",
 				Reason: msg,
-			}
+			})
 			return
 		}
 
@@ -55,41 +58,49 @@ func parseCodexSSE(r io.Reader, out chan<- StreamEvent) {
 			if msg == "" {
 				msg = fmt.Sprintf("%v", errMap)
 			}
-			out <- StreamEvent{
+			emit(StreamEvent{
 				Type:   "stream_error",
 				Reason: msg,
-			}
+			})
 			return
 		}
 
 		if eventType == "response.output_text.delta" {
 			delta, _ := payload["delta"].(string)
 			fullText.WriteString(delta)
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:  "text",
 				Delta: delta,
+			}) {
+				return
 			}
 		} else if eventType == "response.reasoning_text.delta" || eventType == "response.reasoning_summary_text.delta" {
 			delta, _ := payload["delta"].(string)
 			fullThinking.WriteString(delta)
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:  "thinking",
 				Delta: delta,
+			}) {
+				return
 			}
 		} else if eventType == "response.completed" {
 			break
 		}
 	}
 
-	out <- StreamEvent{
+	if err := scanner.Err(); err != nil {
+		emit(StreamEvent{Type: "stream_error", Err: err, Reason: err.Error()})
+		return
+	}
+	emit(StreamEvent{
 		Type:         "done",
 		FullText:     fullText.String(),
 		FullThinking: fullThinking.String(),
-	}
+	})
 }
 
 // parseClaudeSSE parses an SSE stream produced by Anthropic Claude Code Messages.
-func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
+func parseClaudeSSE(r io.Reader, emit func(StreamEvent) bool) {
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -104,7 +115,10 @@ func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
 		}
 
 		dataStr := strings.TrimSpace(line[5:])
-		if dataStr == "" || dataStr == "[DONE]" {
+		if dataStr == "" {
+			continue
+		}
+		if dataStr == "[DONE]" {
 			break
 		}
 
@@ -121,10 +135,10 @@ func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
 			if msg == "" {
 				msg = fmt.Sprintf("%v", errMap)
 			}
-			out <- StreamEvent{
+			emit(StreamEvent{
 				Type:   "stream_error",
 				Reason: msg,
-			}
+			})
 			return
 		}
 
@@ -135,16 +149,20 @@ func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
 				if deltaType == "text_delta" {
 					text, _ := deltaObj["text"].(string)
 					fullText.WriteString(text)
-					out <- StreamEvent{
+					if !emit(StreamEvent{
 						Type:  "text",
 						Delta: text,
+					}) {
+						return
 					}
 				} else if deltaType == "thinking_delta" {
 					thinking, _ := deltaObj["thinking"].(string)
 					fullThinking.WriteString(thinking)
-					out <- StreamEvent{
+					if !emit(StreamEvent{
 						Type:  "thinking",
 						Delta: thinking,
+					}) {
+						return
 					}
 				}
 			}
@@ -153,15 +171,19 @@ func parseClaudeSSE(r io.Reader, out chan<- StreamEvent) {
 		}
 	}
 
-	out <- StreamEvent{
+	if err := scanner.Err(); err != nil {
+		emit(StreamEvent{Type: "stream_error", Err: err, Reason: err.Error()})
+		return
+	}
+	emit(StreamEvent{
 		Type:         "done",
 		FullText:     fullText.String(),
 		FullThinking: fullThinking.String(),
-	}
+	})
 }
 
 // parseOpenAISSE parses an SSE stream produced by standard OpenAI /v1/chat/completions (e.g. Gemini 2.5 Pro).
-func parseOpenAISSE(r io.Reader, out chan<- StreamEvent) {
+func parseOpenAISSE(r io.Reader, emit func(StreamEvent) bool) {
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -176,7 +198,10 @@ func parseOpenAISSE(r io.Reader, out chan<- StreamEvent) {
 		}
 
 		dataStr := strings.TrimSpace(line[5:])
-		if dataStr == "" || dataStr == "[DONE]" {
+		if dataStr == "" {
+			continue
+		}
+		if dataStr == "[DONE]" {
 			break
 		}
 
@@ -190,10 +215,10 @@ func parseOpenAISSE(r io.Reader, out chan<- StreamEvent) {
 			if msg == "" {
 				msg = fmt.Sprintf("%v", errObj)
 			}
-			out <- StreamEvent{
+			emit(StreamEvent{
 				Type:   "stream_error",
 				Reason: msg,
-			}
+			})
 			return
 		}
 
@@ -215,32 +240,41 @@ func parseOpenAISSE(r io.Reader, out chan<- StreamEvent) {
 		// Reasoning / Thinking chunk
 		if reasoning, ok := delta["reasoning_content"].(string); ok && reasoning != "" {
 			fullThinking.WriteString(reasoning)
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:  "thinking",
 				Delta: reasoning,
+			}) {
+				return
 			}
 		} else if thinking, ok := delta["thinking"].(string); ok && thinking != "" {
 			fullThinking.WriteString(thinking)
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:  "thinking",
 				Delta: thinking,
+			}) {
+				return
 			}
 		}
 
 		// Text content chunk
 		if content, ok := delta["content"].(string); ok && content != "" {
 			fullText.WriteString(content)
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:  "text",
 				Delta: content,
+			}) {
+				return
 			}
 		}
 	}
 
-	out <- StreamEvent{
+	if err := scanner.Err(); err != nil {
+		emit(StreamEvent{Type: "stream_error", Err: err, Reason: err.Error()})
+		return
+	}
+	emit(StreamEvent{
 		Type:         "done",
 		FullText:     fullText.String(),
 		FullThinking: fullThinking.String(),
-	}
+	})
 }
-

@@ -41,10 +41,10 @@ type AnyRouterClient struct {
 func NewClient(cfg ClientConfig) (*AnyRouterClient, error) {
 	apiKey := strings.TrimSpace(cfg.APIKey)
 	if apiKey == "" {
-		apiKey = os.Getenv("ANYROUTER_API_KEY")
+		apiKey = strings.TrimSpace(os.Getenv("ANYROUTER_API_KEY"))
 	}
 	if apiKey == "" {
-		apiKey = "sk-BZMSVilf0BiRvEnvymd3KflwY1xr45wmXjw5Ewg2fsIkp9T2"
+		return nil, fmt.Errorf("请提供 API Key 或设置 ANYROUTER_API_KEY")
 	}
 
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
@@ -54,10 +54,11 @@ func NewClient(cfg ClientConfig) (*AnyRouterClient, error) {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 
 	proxy := strings.TrimSpace(cfg.Proxy)
 	if proxy == "" && cfg.Proxy == "" {
-		// default proxy unless explicitly set to "" or disabled
+		// Use "direct" or "none" to disable the default local proxy.
 		proxy = DefaultProxy
 	}
 
@@ -89,30 +90,42 @@ func NewClient(cfg ClientConfig) (*AnyRouterClient, error) {
 		ForceAttemptHTTP2:     false,
 		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disable HTTP/2 over proxy to prevent deadlock
 		TLSClientConfig: &tls.Config{
-			Renegotiation:      tls.RenegotiateFreelyAsClient, // Support Cloudflare/ESA SSL renegotiation
-			InsecureSkipVerify: true,
+			Renegotiation: tls.RenegotiateFreelyAsClient, // Support Cloudflare/ESA SSL renegotiation
 		},
-		DisableKeepAlives: true, // Avoid broken socket reuse through local proxy
+		DisableKeepAlives: proxy != "none" && proxy != "direct", // Preserve compatibility with local proxies.
 	}
 
 	if proxy != "" && proxy != "none" && proxy != "direct" {
 		proxyURL, err := url.Parse(proxy)
-		if err != nil {
-			return nil, fmt.Errorf("invalid proxy URL: %w", err)
+		if err != nil || proxyURL.Hostname() == "" {
+			return nil, fmt.Errorf("invalid proxy URL")
+		}
+		switch proxyURL.Scheme {
+		case "http", "https", "socks5", "socks5h":
+		default:
+			return nil, fmt.Errorf("unsupported proxy scheme")
 		}
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}
 
+	var maxRetries *int
+	if cfg.MaxRetries != nil {
+		if *cfg.MaxRetries < 1 {
+			return nil, fmt.Errorf("MaxRetries must be at least 1")
+		}
+		attempts := *cfg.MaxRetries
+		maxRetries = &attempts
+	}
 	client := &AnyRouterClient{
 		apiKey:              apiKey,
 		baseURL:             baseURL,
 		proxy:               proxy,
-		maxRetries:          cfg.MaxRetries,
+		maxRetries:          maxRetries,
 		attemptsPerRound:    attemptsPerRound,
 		intraRoundDelay:     intraRoundDelay,
 		interRoundDelay:     interRoundDelay,
 		timeout:             timeout,
-		httpClient:          &http.Client{Transport: transport, Timeout: 0}, // streaming timeout handled by context/read
+		httpClient:          &http.Client{Transport: transport}, // Each attempt has its own context deadline.
 		claudeDeviceID:      RandomHex(32),
 		codexInstallationID: NewUUID(),
 	}
@@ -120,7 +133,13 @@ func NewClient(cfg ClientConfig) (*AnyRouterClient, error) {
 	return client, nil
 }
 
+// CloseIdleConnections releases pooled connections when a client is no longer used.
+func (c *AnyRouterClient) CloseIdleConnections() {
+	c.httpClient.CloseIdleConnections()
+}
+
 // StreamChat sends a prompt or conversation history and yields streaming events over a channel.
+// Callers that stop reading early must cancel ctx to release the request.
 func (c *AnyRouterClient) StreamChat(
 	ctx context.Context,
 	model string,
@@ -155,6 +174,7 @@ func (c *AnyRouterClient) StreamChat(
 	}
 
 	out := make(chan StreamEvent, 64)
+	emit := func(event StreamEvent) bool { return sendEvent(ctx, out, event) }
 
 	go func() {
 		defer close(out)
@@ -191,11 +211,11 @@ func (c *AnyRouterClient) StreamChat(
 
 			bodyBytes, err := json.Marshal(bodyMap)
 			if err != nil {
-				out <- StreamEvent{Type: "stream_error", Err: err, Reason: err.Error()}
+				emit(StreamEvent{Type: "stream_error", Err: err, Reason: err.Error()})
 				return
 			}
 
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:           "status",
 				Stage:          "connecting",
 				Round:          roundNum,
@@ -203,111 +223,33 @@ func (c *AnyRouterClient) StreamChat(
 				MaxInRound:     c.attemptsPerRound,
 				Attempt:        attempt,
 				Message:        fmt.Sprintf("正在发起连接 (第 %d 轮 #%d/%d, 模型: %s)...", roundNum, attemptInRound, c.attemptsPerRound, model),
-			}
-
-			retryReason := ""
-			statusCode := 0
-			var retryAfterSec float64 = 0
-
-			req, reqErr := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(bodyBytes))
-			if reqErr != nil {
-				out <- StreamEvent{Type: "stream_error", Err: reqErr, Reason: reqErr.Error()}
+			}) {
 				return
 			}
-			req.Header = headers
 
-			resp, err := c.httpClient.Do(req)
-			if err != nil {
-				retryReason = fmt.Sprintf("网络连接波动: %v", err)
-			} else {
-				statusCode = resp.StatusCode
-				if ra := resp.Header.Get("Retry-After"); ra != "" {
-					if val, parseErr := strconv.ParseFloat(ra, 64); parseErr == nil {
-						retryAfterSec = val
-					}
-				}
-
-				if statusCode == 200 {
-					sseChan := make(chan StreamEvent, 32)
-					go func() {
-						defer resp.Body.Close()
-						switch protocol {
-						case ProtocolCodex:
-							parseCodexSSE(resp.Body, sseChan)
-						case ProtocolClaude:
-							parseClaudeSSE(resp.Body, sseChan)
-						case ProtocolOpenAI:
-							parseOpenAISSE(resp.Body, sseChan)
-						}
-						close(sseChan)
-					}()
-
-					hasContent := false
-					for event := range sseChan {
-						if event.Type == "stream_error" {
-							retryReason = fmt.Sprintf("流内排队拦截: %s", event.Reason)
-							break
-						}
-
-						if event.Type == "text" || event.Type == "thinking" {
-							if !hasContent {
-								hasContent = true
-								out <- StreamEvent{
-									Type:           "status",
-									Stage:          "connected",
-									Round:          roundNum,
-									AttemptInRound: attemptInRound,
-									Attempt:        attempt,
-									Message:        "成功挤入通道！",
-								}
-							}
-							out <- event
-						} else if event.Type == "done" {
-							if hasContent {
-								out <- event
-								return
-							}
-							retryReason = "流连接建立但未返回有效内容"
-						}
-					}
-
-					if hasContent {
-						return
-					}
-				} else if retryableStatusCodes[statusCode] {
-					b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-					resp.Body.Close()
-					errMsg := parseErrorMessage(b, statusCode)
-					retryReason = fmt.Sprintf("HTTP %d: %s", statusCode, errMsg)
-				} else {
-					b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-					resp.Body.Close()
-					errMsg := parseErrorMessage(b, statusCode)
-					out <- StreamEvent{
-						Type:       "stream_error",
-						StatusCode: statusCode,
-						Reason:     errMsg,
-						Err:        fmt.Errorf("HTTP %d: %s", statusCode, errMsg),
-					}
-					return
-				}
+			result := c.streamAttempt(ctx, protocol, endpoint, headers, bodyBytes, out, StreamEvent{
+				Type: "status", Stage: "connected", Round: roundNum,
+				AttemptInRound: attemptInRound, Attempt: attempt, Message: "成功挤入通道！",
+			})
+			if ctx.Err() != nil || (result.hasContent && result.err == nil) {
+				return
 			}
-
-			// 检查是否超出最大重试
-			if c.maxRetries != nil && attempt >= *c.maxRetries {
-				out <- StreamEvent{
-					Type:    "stream_error",
-					Reason:  retryReason,
-					Err:     fmt.Errorf("%s", retryReason),
-					Attempt: attempt,
-				}
+			// Never replay a partially delivered response: the caller would see duplicates.
+			if !result.retryable || result.hasContent || (c.maxRetries != nil && attempt >= *c.maxRetries) {
+				emit(StreamEvent{
+					Type:       "stream_error",
+					Reason:     result.err.Error(),
+					Err:        result.err,
+					StatusCode: result.statusCode,
+					Attempt:    attempt,
+				})
 				return
 			}
 
 			// 计算等待冷却时长
 			var waitDuration time.Duration
-			if retryAfterSec > 0 {
-				waitDuration = time.Duration(math.Min(retryAfterSec, 60.0)) * time.Second
+			if result.retryAfter > 0 {
+				waitDuration = result.retryAfter
 			} else if isRoundEnd {
 				waitDuration = c.interRoundDelay
 			} else {
@@ -320,18 +262,20 @@ func (c *AnyRouterClient) StreamChat(
 				statusMsg = fmt.Sprintf("第 %d 轮完成 (%d/%d)，等待冷却 %ds 开启下一轮...", roundNum, c.attemptsPerRound, c.attemptsPerRound, int(waitSec))
 			}
 
-			out <- StreamEvent{
+			if !emit(StreamEvent{
 				Type:           "status",
 				Stage:          "retrying",
 				Round:          roundNum,
 				AttemptInRound: attemptInRound,
 				MaxInRound:     c.attemptsPerRound,
 				Attempt:        attempt,
-				StatusCode:     statusCode,
-				Reason:         retryReason,
+				StatusCode:     result.statusCode,
+				Reason:         result.err.Error(),
 				WaitSeconds:    waitSec,
 				IsRoundEnd:     isRoundEnd,
 				Message:        statusMsg,
+			}) {
+				return
 			}
 
 			// 逐秒倒计时
@@ -342,7 +286,7 @@ func (c *AnyRouterClient) StreamChat(
 					break
 				}
 				remaining := int(math.Max(0, math.Round((waitDuration - elapsed).Seconds())))
-				out <- StreamEvent{
+				if !emit(StreamEvent{
 					Type:           "status",
 					Stage:          "waiting",
 					Round:          roundNum,
@@ -351,12 +295,16 @@ func (c *AnyRouterClient) StreamChat(
 					Remaining:      remaining,
 					WaitSeconds:    waitSec,
 					IsRoundEnd:     isRoundEnd,
+				}) {
+					return
 				}
 
+				timer := time.NewTimer(min(time.Second, waitDuration-elapsed))
 				select {
 				case <-ctx.Done():
+					timer.Stop()
 					return
-				case <-time.After(1 * time.Second):
+				case <-timer.C:
 				}
 			}
 		}
@@ -365,23 +313,126 @@ func (c *AnyRouterClient) StreamChat(
 	return out, nil
 }
 
+func sendEvent(ctx context.Context, out chan<- StreamEvent, event StreamEvent) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case out <- event:
+		return true
+	}
+}
+
+type attemptResult struct {
+	err        error
+	statusCode int
+	retryAfter time.Duration
+	retryable  bool
+	hasContent bool
+}
+
+func (c *AnyRouterClient) streamAttempt(parent context.Context, protocol ProtocolType, endpoint string,
+	headers http.Header, body []byte, out chan<- StreamEvent, connected StreamEvent) attemptResult {
+	ctx, cancel := context.WithTimeout(parent, c.timeout)
+	defer cancel()
+	result := attemptResult{retryable: true}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		result.err, result.retryable = err, false
+		return result
+	}
+	req.Header = headers
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		result.err = fmt.Errorf("网络连接波动: %w", err)
+		return result
+	}
+	defer resp.Body.Close()
+	result.statusCode = resp.StatusCode
+	if raw := resp.Header.Get("Retry-After"); raw != "" {
+		if seconds, err := strconv.ParseFloat(raw, 64); err == nil && seconds > 0 {
+			result.retryAfter = time.Duration(math.Min(seconds, 60) * float64(time.Second))
+		} else if until, err := http.ParseTime(raw); err == nil {
+			result.retryAfter = min(max(time.Until(until), 0), time.Minute)
+		}
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		result.err = fmt.Errorf("HTTP %d: %s", resp.StatusCode, parseErrorMessage(body, resp.StatusCode))
+		result.retryable = retryableStatusCodes[resp.StatusCode]
+		return result
+	}
+
+	// Parse on this goroutine so early exits cannot strand a producer on a full channel.
+	emit := func(event StreamEvent) bool {
+		switch event.Type {
+		case "stream_error":
+			result.err = event.Err
+			if result.err == nil {
+				result.err = fmt.Errorf("%s", event.Reason)
+			}
+			return false
+		case "text", "thinking":
+			if event.Delta == "" {
+				return true
+			}
+			if !result.hasContent {
+				result.hasContent = true
+				if !sendEvent(ctx, out, connected) {
+					return false
+				}
+			}
+		case "done":
+			if !result.hasContent {
+				return false
+			}
+		}
+		return sendEvent(ctx, out, event)
+	}
+	switch protocol {
+	case ProtocolCodex:
+		parseCodexSSE(resp.Body, emit)
+	case ProtocolClaude:
+		parseClaudeSSE(resp.Body, emit)
+	case ProtocolOpenAI:
+		parseOpenAISSE(resp.Body, emit)
+	}
+	if ctx.Err() != nil {
+		result.err = ctx.Err()
+	} else if !result.hasContent && result.err == nil {
+		result.err = fmt.Errorf("流连接建立但未返回有效内容")
+	}
+	return result
+}
+
 // Chat performs a synchronous non-streaming chat request and returns the full response text.
 func (c *AnyRouterClient) Chat(ctx context.Context, model, prompt string) (string, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	events, err := c.StreamChat(ctx, model, prompt, nil, "", "", 4096)
 	if err != nil {
 		return "", err
 	}
 
-	var fullText string
+	var fullText strings.Builder
 	for event := range events {
 		if event.Type == "stream_error" {
+			if event.Err != nil {
+				return "", event.Err
+			}
 			return "", fmt.Errorf("%s", event.Reason)
 		}
+		if event.Type == "text" {
+			fullText.WriteString(event.Delta)
+		}
 		if event.Type == "done" {
-			fullText = event.FullText
+			fullText.Reset()
+			fullText.WriteString(event.FullText)
 		}
 	}
-	return fullText, nil
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	return fullText.String(), nil
 }
 
 func parseErrorMessage(raw []byte, statusCode int) string {
@@ -418,8 +469,8 @@ func parseErrorMessage(raw []byte, statusCode int) string {
 			return fmt.Sprintf("HTTP %d 状态异常", statusCode)
 		}
 	}
-	if len(msg) > 120 {
-		return msg[:120] + "..."
+	if runes := []rune(msg); len(runes) > 120 {
+		return string(runes[:120]) + "..."
 	}
 	return msg
 }

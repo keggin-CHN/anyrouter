@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"anyrouter/pkg/keeper"
@@ -18,16 +20,21 @@ import (
 	"github.com/jchv/go-webview2"
 )
 
+const AppWindowTitle = "AnyRouter 多Key并发自动挂机保活矩阵 v2.6 (Go 原生桌面版)"
+
 var (
 	k32 = syscall.NewLazyDLL("kernel32.dll")
 	u32 = syscall.NewLazyDLL("user32.dll")
 	s32 = syscall.NewLazyDLL("shell32.dll")
 
 	pGetModuleHandle     = k32.NewProc("GetModuleHandleW")
+	pCreateMutexW        = k32.NewProc("CreateMutexW")
+	pCloseHandle         = k32.NewProc("CloseHandle")
 	pSetWindowLongPtr    = u32.NewProc("SetWindowLongPtrW")
 	pCallWindowProc      = u32.NewProc("CallWindowProcW")
 	pShowWindow          = u32.NewProc("ShowWindow")
 	pSetForegroundWindow = u32.NewProc("SetForegroundWindow")
+	pFindWindowW         = u32.NewProc("FindWindowW")
 	pSendMessage         = u32.NewProc("SendMessageW")
 	pCreatePopupMenu     = u32.NewProc("CreatePopupMenu")
 	pAppendMenu          = u32.NewProc("AppendMenuW")
@@ -218,6 +225,48 @@ func main() {
 	autoStartFlag := flag.Bool("auto-start", true, "程序启动后是否立即开启保活")
 	flag.Parse()
 
+	// Single Instance Guard (防止重复启动产生多个窗口或 WebView2 端口冲突死锁)
+	if runtime.GOOS == "windows" && !*cliModeFlag {
+		mutexName, _ := syscall.UTF16PtrFromString("Local\\AnyRouterKeeperSingleInstanceMutex_v2")
+		hMutex, _, mutexErr := pCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
+		// Proc.Call captures GetLastError on the calling thread.
+		isAlreadyRunning := hMutex != 0 && mutexErr == syscall.Errno(183)
+
+		// 额外兜底探测：如果本地 28888 端口已被占用且响应 status，说明已有实例在运行
+		if !isAlreadyRunning {
+			testClient := &http.Client{Timeout: 300 * time.Millisecond}
+			if resp, err := testClient.Get(fmt.Sprintf("http://127.0.0.1:%d/api/status", *portFlag)); err == nil && resp != nil {
+				_ = resp.Body.Close()
+				if resp.StatusCode == 200 {
+					isAlreadyRunning = true
+				}
+			}
+		}
+
+		if isAlreadyRunning {
+			// 已有实例在后台运行：通过 REST API 与 Win32 唤醒并置顶窗口
+			client := &http.Client{Timeout: 600 * time.Millisecond}
+			if resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%d/api/show", *portFlag), "application/json", nil); err == nil {
+				_ = resp.Body.Close()
+			}
+
+			titlePtr, _ := syscall.UTF16PtrFromString(AppWindowTitle)
+			existingHwnd, _, _ := pFindWindowW.Call(0, uintptr(unsafe.Pointer(titlePtr)))
+			if existingHwnd != 0 {
+				pShowWindow.Call(existingHwnd, uintptr(SW_RESTORE))
+				pSetForegroundWindow.Call(existingHwnd)
+			}
+			if hMutex != 0 {
+				pCloseHandle.Call(hMutex)
+			}
+			return
+		}
+
+		if hMutex != 0 {
+			defer pCloseHandle.Call(hMutex)
+		}
+	}
+
 	if *cliModeFlag {
 		attachParentConsole()
 	}
@@ -261,6 +310,7 @@ func main() {
 		webServer = web.NewServer(*portFlag, matrix)
 		if err := webServer.Start(); err != nil {
 			fmt.Printf("⚠️ Web 控制台启动失败: %v\n", err)
+			return
 		} else {
 			webURL = webServer.Addr()
 			fmt.Printf(" 🌐 控制面板服务已就绪: %s\n", webURL)
@@ -297,6 +347,16 @@ func main() {
 	// Signal handling for graceful exit
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+	// CLI and browser fallback modes also need a graceful exit endpoint.
+	if webServer != nil {
+		webServer.SetWindowControls(nil, nil, func() {
+			select {
+			case sigChan <- os.Interrupt:
+			default:
+			}
+		})
+	}
 
 	if *cliModeFlag || *noWebFlag {
 		fmt.Printf("\n[提示] 命令行服务模式已启动，按 Ctrl+C 可安全退出...\n\n")
@@ -309,7 +369,7 @@ func main() {
 	opts := webview2.WebViewOptions{
 		Debug: false,
 		WindowOptions: webview2.WindowOptions{
-			Title:  "AnyRouter 多Key自动挂机排队保活工具 v2.6 (Go 原生桌面版)",
+			Title:  AppWindowTitle,
 			Width:  1120,
 			Height: 840,
 			Center: true,
@@ -362,14 +422,22 @@ func main() {
 		copy(nidGlobal.szTip[:], tipStr)
 		pShellNotifyIcon.Call(uintptr(NIM_ADD), uintptr(unsafe.Pointer(&nidGlobal)))
 
-		// Link Web server window control endpoints (/api/hide, /api/exit)
+		// Link Web server window control endpoints (/api/hide, /api/show, /api/exit)
 		if webServer != nil {
 			webServer.SetWindowControls(func() {
-				pShowWindow.Call(hwnd, uintptr(SW_HIDE))
+				// onHide: hide window to background tray
+				w.Dispatch(func() { pShowWindow.Call(hwnd, uintptr(SW_HIDE)) })
 			}, func() {
-				reallyExit = true
-				pShellNotifyIcon.Call(uintptr(NIM_DELETE), uintptr(unsafe.Pointer(&nidGlobal)))
+				// onShow: restore window from background tray to foreground
 				w.Dispatch(func() {
+					pShowWindow.Call(hwnd, uintptr(SW_RESTORE))
+					pSetForegroundWindow.Call(hwnd)
+				})
+			}, func() {
+				// onExit: completely exit
+				w.Dispatch(func() {
+					reallyExit = true
+					pShellNotifyIcon.Call(uintptr(NIM_DELETE), uintptr(unsafe.Pointer(&nidGlobal)))
 					w.Terminate()
 				})
 			})
@@ -378,9 +446,9 @@ func main() {
 		// Terminate window if Ctrl+C or SIGTERM received
 		go func() {
 			<-sigChan
-			reallyExit = true
-			pShellNotifyIcon.Call(uintptr(NIM_DELETE), uintptr(unsafe.Pointer(&nidGlobal)))
 			w.Dispatch(func() {
+				reallyExit = true
+				pShellNotifyIcon.Call(uintptr(NIM_DELETE), uintptr(unsafe.Pointer(&nidGlobal)))
 				w.Terminate()
 			})
 		}()
@@ -401,10 +469,10 @@ func main() {
 
 func shutdown(matrix *keeper.Matrix, webServer *web.Server, logChan chan keeper.LogEntry) {
 	fmt.Printf("\n🛑 正在平滑安全停止所有保活通道...\n")
-	matrix.Stop()
 	if webServer != nil {
 		webServer.Stop()
 	}
+	matrix.Stop()
 	matrix.UnsubscribeLogs(logChan)
 	fmt.Printf("✅ 程序已安全退出。\n")
 }
